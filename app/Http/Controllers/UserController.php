@@ -6,6 +6,8 @@ use App\Models\User;
 use App\Http\Requests\RegisterRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\ValidationException;
 use Illuminate\Http\JsonResponse;
 
 class UserController extends Controller
@@ -20,5 +22,28 @@ class UserController extends Controller
         ]);
 
         return response()->json(['user' => $user], 201);
+    }
+
+    public function login(Request $request): JsonResponse
+    {
+        $credentials = $request->only('email', 'password');
+
+        if (Auth::attempt($credentials)) {
+            $request->session()->regenerate();
+
+            return response()->json(['auth_user' => Auth::user()], 200);
+        }
+
+        throw ValidationException::withMessages([
+            'email' => ['ログインに失敗しました'],
+        ]);
+    }
+
+    public function logout(Request $request): JsonResponse
+    {
+        Auth::logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+        return response()->json(['message' => 'ログアウトしました'], 200);
     }
 }
