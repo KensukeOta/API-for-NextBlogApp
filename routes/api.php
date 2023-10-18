@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\PostController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -21,6 +22,10 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 
 Route::controller(UserController::class)->group(function () {
     Route::post('/users', 'register')->name('users.register');
+});
+
+Route::controller(PostController::class)->group(function() {
+    Route::post('/posts', 'store')->name('posts.store');
 });
 
 Route::get('/hello', function () {
