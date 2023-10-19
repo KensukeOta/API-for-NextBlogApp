@@ -25,6 +25,7 @@ Route::controller(UserController::class)->group(function () {
 });
 
 Route::controller(PostController::class)->group(function() {
+    Route::get('/posts', 'index')->name('posts.index');
     Route::post('/posts', 'store')->name('posts.store');
 });
 
