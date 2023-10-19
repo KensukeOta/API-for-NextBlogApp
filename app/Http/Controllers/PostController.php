@@ -8,6 +8,12 @@ use Illuminate\Http\Request;
 
 class PostController extends Controller
 {
+    public function index(Request $request)
+    {
+        $posts = Post::with('user')->orderBy('created_at', 'desc')->get();
+        return response()->json(['posts' => $posts], 200);
+    }
+
     public function store(PostRequest $request)
     {
         $post = Post::create([
