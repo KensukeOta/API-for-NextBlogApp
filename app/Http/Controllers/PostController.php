@@ -45,4 +45,12 @@ class PostController extends Controller
 
         return response()->json(['post' => $post], 200);
     }
+
+    public function destroy($id): JsonResponse
+    {
+        Post::findOrFail($id)
+            ->delete();
+
+        return response()->json([], 204);
+    }
 }
