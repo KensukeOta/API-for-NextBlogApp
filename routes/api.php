@@ -28,6 +28,7 @@ Route::controller(PostController::class)->group(function() {
     Route::get('/posts', 'index')->name('posts.index');
     Route::post('/posts', 'store')->name('posts.store');
     Route::get('/posts/{id}', 'show')->whereNumber('id')->name('posts.show');
+    Route::patch('/posts/{id}', 'update')->whereNumber('id')->name('posts.update');
 });
 
 Route::get('/hello', function () {

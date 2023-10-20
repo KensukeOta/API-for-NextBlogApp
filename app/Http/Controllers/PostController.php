@@ -32,4 +32,17 @@ class PostController extends Controller
         $post = Post::with('user')->findOrFail($id);
         return response()->json(['post' => $post], 200);
     }
+
+    public function update($id, PostRequest $request): JsonResponse
+    {
+        $post = Post::findOrFail($id);
+
+        $post->update([
+            'title' => $request->title,
+            'body' => $request->body,
+            'user_id' => $request->user_id,
+        ]);
+
+        return response()->json(['post' => $post], 200);
+    }
 }
