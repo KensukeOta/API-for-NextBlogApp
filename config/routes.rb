@@ -9,5 +9,7 @@ Rails.application.routes.draw do
   # root "posts#index"
   scope "v1/api" do
     resources :users
+    get "/users/email/:email", to: "users#show_by_email", constraints: { email: /[^\/]+/ }
+    resources :posts
   end
 end
