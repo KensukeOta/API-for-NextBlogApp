@@ -1,4 +1,10 @@
 class PostsController < ApplicationController
+  def index
+    @posts = Post.order(created_at: :desc).includes(:user)
+    
+    render json: { allPosts: @posts }, include: :user
+  end
+  
   def create
     @post = Post.new(post_params)
 
