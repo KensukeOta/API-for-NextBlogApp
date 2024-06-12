@@ -31,23 +31,9 @@ class UsersController < ApplicationController
     end
   end
 
-  def login
-    Rails.logger.debug "Login params: #{login_params.inspect}"
-    user = User.find_by(email: login_params[:email])
-    if user && user.authenticate(login_params[:password])
-      render json: user, status: :ok
-    else
-      render json: { error: 'Invalid email or password' }, status: :unauthorized
-    end
-  end
-
   private
 
     def user_params
       params.permit(:uid, :name, :email, :image, :provider, :password, :password_confirmation)
-    end
-
-    def login_params
-      params.permit(:email, :password)
     end
 end

@@ -11,8 +11,8 @@ Rails.application.routes.draw do
     resources :users
     # get  "/users/email/:email",      to: "users#show_by_email", constraints: { email: /[^\/]+/ }
     post "/users/show_by_email_and_provider", to: "users#show_by_email_and_provider"
+    resources :sessions, only: [:create]
     post "/auth/:provider/callback", to: "oauth#callback"
-    post "/users/login", to: "users#login"
     resources :posts
   end
 end
