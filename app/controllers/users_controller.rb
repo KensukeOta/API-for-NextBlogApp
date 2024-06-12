@@ -1,6 +1,6 @@
 class UsersController < ApplicationController
-  def show_by_email
-    @user = User.find_by(email: params[:email])
+  def show_by_email_and_provider
+    @user = User.find_by(email: user_params[:email], provider: user_params[:provider])
     if @user
       render json: @user, status: :ok
     else
