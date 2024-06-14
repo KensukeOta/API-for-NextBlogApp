@@ -9,14 +9,8 @@ class User < ApplicationRecord
   validates :email, presence: true, length: { maximum: 254 }, format: { with: URI::MailTo::EMAIL_REGEXP }
 
   # パスワードのバリデーションをカスタマイズし、OAuth認証時にはパスワードを必須にしない
-  validates :password, presence: true, confirmation: true, if: :password_required?
+  validates :password, presence: true, length: { minimum: 8, maximum: 32 }, confirmation: true
   validates :password_confirmation, presence: true, if: :password_present?
-
-  # パスワードが必要かどうかを判定するメソッド
-  # providerが空の場合にパスワードが必須と判断する
-  def password_required?
-    provider.blank?
-  end
 
   # パスワードが入力されているかどうかを判定するメソッド
   # パスワードが入力されている場合に確認も必須とする
