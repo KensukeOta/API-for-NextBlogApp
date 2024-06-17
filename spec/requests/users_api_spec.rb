@@ -1,6 +1,29 @@
 require 'rails_helper'
 
 RSpec.describe "UsersApis", type: :request do
+  describe "POST /v1/api/users/show_by_email_and_provider" do
+    before do
+      FactoryBot.create(:user, name: "hoge", email: "hoge@example.com", provider: "google")
+    end
+
+    # 200レスポンスを返すこと
+    it "returns a 200 response" do
+      post users_show_by_email_and_provider_path, params: {
+        email: "hoge@example.com", provider: "google"
+      }
+      expect(response).to have_http_status(:success)
+    end
+
+    # 渡されてきたメールアドレスとプロバイダーに合致するユーザーを返すこと
+    it "return the user that matches the given email address and provider" do
+      post users_show_by_email_and_provider_path, params: {
+        email: "hoge@example.com", provider: "google"
+      }
+      json = JSON.parse(response.body)
+      expect(json["name"]).to eq "hoge"
+    end
+  end
+  
   describe "POST /v1/api/users" do
     # ユーザーを作成できること
     it "creates a user" do
@@ -13,5 +36,4 @@ RSpec.describe "UsersApis", type: :request do
       expect(response).to have_http_status(:created)
     end
   end
-
 end
