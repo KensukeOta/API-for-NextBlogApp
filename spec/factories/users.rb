@@ -9,7 +9,7 @@ FactoryBot.define do
     provider { "credentials" }
   end
 
-  factory :oauth_user do
+  factory :oauth_user, class: "User"  do
     uid      { "101207280839905116767" }
     name     { "oauth_user" }
     email    { "bump.kensuke.miwa@gmail.com" }

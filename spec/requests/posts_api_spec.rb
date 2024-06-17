@@ -38,7 +38,7 @@ RSpec.describe "PostsApis", type: :request do
     end
   end
 
-  describe "POST /v1/api/post/:id" do
+  describe "POST /v1/api/posts" do
     before do
       @user = FactoryBot.create(:user)
     end
