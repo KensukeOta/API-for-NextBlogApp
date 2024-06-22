@@ -8,9 +8,9 @@ Rails.application.routes.draw do
   # Defines the root path route ("/")
   # root "posts#index"
   scope "v1/api" do
+    get "/users/show_by_email_and_provider", to: "users#show_by_email_and_provider"
     resources :users
     # get  "/users/email/:email",      to: "users#show_by_email", constraints: { email: /[^\/]+/ }
-    post "/users/show_by_email_and_provider", to: "users#show_by_email_and_provider"
     resources :sessions, only: [:create]
     post "/auth/:provider/callback", to: "oauth#callback"
     resources :posts

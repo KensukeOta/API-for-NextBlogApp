@@ -1,13 +1,14 @@
 class UsersController < ApplicationController
   def show_by_email_and_provider
-    @user = User.find_by(email: user_params[:email], provider: user_params[:provider])
+    @user = User.includes(:posts).find_by(email: user_params[:email], provider: user_params[:provider])
     if @user
-      render json: @user, status: :ok
+      @posts = @user.posts.order(created_at: :desc)
+      render json: @user.as_json.merge(posts: @posts), status: :ok
     else
       render json: { error: "User not found" }, status: :not_found
     end
   end
-  
+
   def create
     @user = User.find_or_initialize_by(email: user_params[:email], provider: user_params[:provider])
     

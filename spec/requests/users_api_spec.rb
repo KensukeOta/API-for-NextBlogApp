@@ -8,17 +8,13 @@ RSpec.describe "UsersApis", type: :request do
 
     # 200レスポンスを返すこと
     it "returns a 200 response" do
-      post users_show_by_email_and_provider_path, params: {
-        email: "hoge@example.com", provider: "google"
-      }
+      get "/v1/api/users/show_by_email_and_provider?email=hoge@example.com&provider=google"
       expect(response).to have_http_status(:success)
     end
 
     # 渡されてきたメールアドレスとプロバイダーに合致するユーザーを返すこと
     it "return the user that matches the given email address and provider" do
-      post users_show_by_email_and_provider_path, params: {
-        email: "hoge@example.com", provider: "google"
-      }
+      get "/v1/api/users/show_by_email_and_provider?email=hoge@example.com&provider=google"
       json = JSON.parse(response.body)
       expect(json["name"]).to eq "hoge"
     end
