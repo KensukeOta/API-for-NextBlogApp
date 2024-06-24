@@ -1,4 +1,19 @@
 class UsersController < ApplicationController
+  def index
+    if user_params[:name]
+      @user = User.includes(:posts).find_by(name: user_params[:name])
+      if @user
+        @posts = @user.posts.order(created_at: :desc)
+        render json: @user.as_json.merge(posts: @posts), include: :user, status: :ok
+      else
+        render json: { error: "User not found" }, status: :not_found
+      end
+    else
+      @users = User.all
+      render json: @users, status: :ok
+    end
+  end
+  
   def show_by_email_and_provider
     @user = User.includes(:posts).find_by(email: user_params[:email], provider: user_params[:provider])
     if @user
