@@ -1,7 +1,18 @@
 class PostsController < ApplicationController
   def index
+    # ベースクエリを作成
     @posts = Post.includes(:user).order(created_at: :desc)
     
+    # クエリパラメータに基づいてフィルタリング
+    if params[:query].present?
+      query = "%#{params[:query]}%"
+      @posts = @posts.joins(:user).where('title LIKE :query OR users.name LIKE :query', query: query)
+    end
+
+    # LIMITとOFFSETを追加
+    @posts = @posts.limit(params[:limit]) if params[:limit].present?
+    @posts = @posts.offset(params[:offset]) if params[:offset].present?
+
     render json: { allPosts: @posts }, status: :ok, include: :user
   end
 
