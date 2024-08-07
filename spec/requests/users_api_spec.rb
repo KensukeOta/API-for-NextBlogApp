@@ -27,27 +27,16 @@ RSpec.describe "UsersApis", type: :request do
       expect(json["name"]).to eq "hoge"
       expect(response).to have_http_status(:success)
     end
-  end
-
-  describe "POST /v1/users/show_by_email_and_provider" do
-    before do
-      FactoryBot.create(:user, name: "hoge", email: "hoge@example.com", provider: "google")
-    end
-
-    # 200レスポンスを返すこと
-    it "returns a 200 response" do
-      get "/v1/users/show_by_email_and_provider?email=hoge@example.com&provider=google"
-      expect(response).to have_http_status(:success)
-    end
 
     # 渡されてきたメールアドレスとプロバイダーに合致するユーザーを返すこと
     it "return the user that matches the given email address and provider" do
-      get "/v1/users/show_by_email_and_provider?email=hoge@example.com&provider=google"
+      get "/v1/users?email=hoge@example.com&provider=google"
       json = JSON.parse(response.body)
       expect(json["name"]).to eq "hoge"
+      expect(response).to have_http_status(:success)
     end
   end
-  
+
   describe "POST /v1/users" do
     # ユーザーを作成できること
     it "creates a user" do

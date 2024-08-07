@@ -8,11 +8,9 @@ Rails.application.routes.draw do
   # Defines the root path route ("/")
   # root "posts#index"
   scope "/v1" do
-    get "/users/show_by_email_and_provider", to: "users#show_by_email_and_provider"
     resources :users
-    # get  "/users/email/:email",      to: "users#show_by_email", constraints: { email: /[^\/]+/ }
-    resources :sessions, only: [:create]
     post "/oauth", to: "oauth#create"
+    resources :sessions, only: [:create]
     resources :posts
   end
 end
