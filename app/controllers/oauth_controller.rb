@@ -1,14 +1,18 @@
 class OauthController < ApplicationController
-  def callback
-    # ユーザーが既に存在するかをメールアドレスとプロバイダーで検索し、存在しない場合は新規ユーザーを初期化
-    @user = User.find_or_initialize_by(email: user_params[:email], provider: user_params[:provider])
+  def create
+    # ユーザーが既に存在するかをメールアドレスとプロバイダーで検索
+    @user = User.find_by(email: user_params[:email], provider: user_params[:provider])
+
+    # 既存ユーザーが見つかった場合、処理を終了
+    if @user
+      return
+    end
     
-    # ユーザーがまだ保存されていない場合（新規ユーザーの場合）
-    unless @user.persisted?
-      # ユーザーの属性をパラメータから設定
-      @user.assign_attributes(user_params)
+    # 新規ユーザーが見つからなかった場合、初期化
+    unless @user
+      @user = User.new(user_params)
       # OAuth認証の際、実際のパスワードは不要なのでランダムなパスワードを設定
-      @user.password = SecureRandom.hex(10)  # バーチャルなパスワードを設定
+      @user.password = SecureRandom.hex(10)
       # パスワード確認用に同じ値を設定
       @user.password_confirmation = @user.password
     end

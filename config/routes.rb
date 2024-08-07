@@ -12,7 +12,7 @@ Rails.application.routes.draw do
     resources :users
     # get  "/users/email/:email",      to: "users#show_by_email", constraints: { email: /[^\/]+/ }
     resources :sessions, only: [:create]
-    post "/auth/:provider/callback", to: "oauth#callback"
+    post "/oauth", to: "oauth#create"
     resources :posts
   end
 end

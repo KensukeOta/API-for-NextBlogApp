@@ -6,7 +6,7 @@ RSpec.describe "Oauths", type: :request do
     it "creates a oauth user" do
       oauth_attributes = FactoryBot.attributes_for(:oauth_user)
       expect {
-        post "/v1/auth/#{oauth_attributes[:provider]}/callback", params: oauth_attributes
+        post "/v1/oauth", params: oauth_attributes
       }.to change(User, :count).by(1)
 
       expect(response).to have_http_status(:created)
