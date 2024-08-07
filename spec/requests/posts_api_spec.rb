@@ -5,7 +5,7 @@ RSpec.describe "PostsApis", type: :request do
     FactoryBot.create(:post, title: "Sample Post")
     FactoryBot.create(:post, title: "Second Sample Post")
   end
-  describe "GET /v1/api/posts" do
+  describe "GET /v1/posts" do
     # 200レスポンスを返すこと
     it "returns a 200 response" do
       get posts_path
@@ -23,7 +23,7 @@ RSpec.describe "PostsApis", type: :request do
     end
   end
 
-  describe "GET /v1/api/post/:id" do
+  describe "GET /v1/post/:id" do
     # 200レスポンスを返すこと
     it "returns a 200 response" do
       get post_path(1)
@@ -38,7 +38,7 @@ RSpec.describe "PostsApis", type: :request do
     end
   end
 
-  describe "POST /v1/api/posts" do
+  describe "POST /v1/posts" do
     before do
       @user = FactoryBot.create(:user)
     end
@@ -56,7 +56,7 @@ RSpec.describe "PostsApis", type: :request do
     end
   end
 
-  describe "PATCH /v1/api/post/:id" do
+  describe "PATCH /v1/post/:id" do
     before do
       @post = FactoryBot.create(:post)
     end
@@ -70,7 +70,7 @@ RSpec.describe "PostsApis", type: :request do
     end
   end
 
-  describe "DELETE /v1/api/post/:id" do
+  describe "DELETE /v1/post/:id" do
     before do
       @user = FactoryBot.create(:user)
       @post = FactoryBot.create(:post, user: @user)
