@@ -4,8 +4,8 @@ class PostsController < ApplicationController
     @posts = Post.includes(:user).order(created_at: :desc)
     
     # クエリパラメータに基づいてフィルタリング
-    if params[:query].present?
-      query = "%#{params[:query]}%"
+    if query_params[:query].present?
+      query = "%#{query_params[:query]}%"
       @posts = @posts.joins(:user).where('title LIKE :query OR users.name LIKE :query', query: query)
     end
 
@@ -52,5 +52,9 @@ class PostsController < ApplicationController
 
     def post_params
       params.require(:post).permit(:title, :body, :user_id)
+    end
+
+    def query_params
+      params.permit(:query)
     end
 end

@@ -21,6 +21,16 @@ RSpec.describe "PostsApis", type: :request do
       json = JSON.parse(response.body)["allPosts"]
       expect(json.length).to eq 2
     end
+
+    # 渡されてきたクエリに合致する記事を返すこと
+    it "return the post that matches the given query" do
+      get "/v1/posts?query=Second Sample Post"
+      json = JSON.parse(response.body)
+      titles = json["allPosts"].map { |post| post["title"] }
+      
+      expect(titles).to include "Second Sample Post"
+      expect(response).to have_http_status(:success)
+    end
   end
 
   describe "GET /v1/post/:id" do
