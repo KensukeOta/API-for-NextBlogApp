@@ -1,7 +1,7 @@
 class PostsController < ApplicationController
   def index
     # ベースクエリを作成
-    @posts = Post.includes(:user).order(created_at: :desc)
+    @posts = Post.includes(:user, :likes).order(created_at: :desc)
     
     # クエリパラメータに基づいてフィルタリング
     if query_params[:query].present?
@@ -13,13 +13,13 @@ class PostsController < ApplicationController
     @posts = @posts.limit(params[:limit]) if params[:limit].present?
     @posts = @posts.offset(params[:offset]) if params[:offset].present?
 
-    render json: { allPosts: @posts }, status: :ok, include: :user
+    render json: { allPosts: @posts }, status: :ok, include: { user: {}, likes: { include: :user } }
   end
 
   def show
-    @post = Post.includes(:user).find(params[:id])
+    @post = Post.includes(:user, :likes).find(params[:id])
 
-    render json: { post: @post }, status: :ok, include: :user
+    render json: { post: @post }, status: :ok, include: { user: {}, likes: { include: :user } }
   end
   
   def create
