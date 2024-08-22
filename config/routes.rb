@@ -12,5 +12,6 @@ Rails.application.routes.draw do
     post "/oauth", to: "oauth#create"
     resources :sessions, only: [:create]
     resources :posts
+    resources :likes, only: [:create, :destroy]
   end
 end
