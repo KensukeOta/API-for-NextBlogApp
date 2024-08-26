@@ -1,6 +1,8 @@
 class User < ApplicationRecord
   has_many :posts, dependent: :destroy
   has_many :likes, dependent: :destroy
+  has_many :user_tags, dependent: :destroy
+  has_many :tags, through: :user_tags
 
   has_secure_password
 
