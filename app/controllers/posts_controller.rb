@@ -6,7 +6,9 @@ class PostsController < ApplicationController
     # クエリパラメータに基づいてフィルタリング
     if query_params[:query].present?
       query = "%#{query_params[:query]}%"
-      @posts = @posts.joins(:user).where('title LIKE :query OR users.name LIKE :query', query: query)
+      @posts = @posts.left_outer_joins(:user, :tags)
+                     .where('title LIKE :query OR users.name LIKE :query OR tags.name LIKE :query', query: query)
+                     .distinct
     end
 
     # LIMITとOFFSETを追加
