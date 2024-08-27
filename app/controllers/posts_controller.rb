@@ -13,19 +13,23 @@ class PostsController < ApplicationController
     @posts = @posts.limit(params[:limit]) if params[:limit].present?
     @posts = @posts.offset(params[:offset]) if params[:offset].present?
 
-    render json: { allPosts: @posts }, status: :ok, include: { user: {}, likes: { include: :user } }
+    render json: { allPosts: @posts }, status: :ok, include: { user: {}, likes: { include: :user }, tags: {} }
   end
 
   def show
     @post = Post.includes(:user, :likes).find(params[:id])
 
-    render json: { post: @post }, status: :ok, include: { user: {}, likes: { include: :user } }
+    render json: { post: @post }, status: :ok, include: { user: {}, likes: { include: :user }, tags: {} }
   end
   
   def create
     @post = Post.new(post_params)
 
     if @post.save
+      # タグの処理
+      if params[:tags].present?
+        process_tags(@post, params[:tags])
+      end
       render json: @post, status: :created, location: @post
     else
       render json: @post.errors, status: :unprocessable_entity
@@ -36,6 +40,11 @@ class PostsController < ApplicationController
     @post = Post.find(params[:id])
     
     if @post.update(post_params)
+      # タグの処理
+      if params[:tags].present?
+        @post.tags.clear # 既存のタグをクリア
+        process_tags(@post, params[:tags])
+      end
       render json: @post
     else
       render json: @post.errors, status: :unprocessable_entity
@@ -56,5 +65,14 @@ class PostsController < ApplicationController
 
     def query_params
       params.permit(:query)
+    end
+
+    def process_tags(post, tags)
+      tags.each do |tag_name|
+        next if tag_name.strip.blank?
+        
+        tag = Tag.find_or_create_by(name: tag_name.strip)
+        post.tags << tag unless post.tags.include?(tag)
+      end
     end
 end
