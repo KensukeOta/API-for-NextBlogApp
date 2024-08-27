@@ -11,7 +11,7 @@ class UsersController < ApplicationController
       @posts = @user.posts.order(created_at: :desc)
       @likes = @user.likes.order(created_at: :desc)
 
-      render json: @user.as_json.merge(posts: @posts, likes: @likes.as_json(include: { post: { include: [:user, :likes] } })), include: { user: {}, likes: {} }, status: :ok
+      render json: @user.as_json.merge(posts: @posts, likes: @likes.as_json(include: { post: { include: [:user, :likes, :tags] } })), include: { user: {}, likes: {}, tags: {} }, status: :ok
     else
       @users = User.all
       render json: @users, status: :ok
