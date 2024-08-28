@@ -9,6 +9,7 @@ Rails.application.routes.draw do
   # root "posts#index"
   scope "/v1" do
     resources :users
+    patch "/users/:id/update_tags", to: "users#update_tags"
     post "/oauth", to: "oauth#create"
     resources :sessions, only: [:create]
     resources :posts
