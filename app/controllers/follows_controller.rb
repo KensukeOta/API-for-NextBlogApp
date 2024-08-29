@@ -7,7 +7,7 @@ class FollowsController < ApplicationController
     follow = Follow.new(follower: follower, following: following)
 
     if follow.save
-      render json: { message: 'フォローしました' }, status: :created
+      render json: { message: "フォローしました" }, status: :created
     else
       render json: { errors: follow.errors.full_messages }, status: :unprocessable_entity
     end
@@ -21,9 +21,43 @@ class FollowsController < ApplicationController
     follow = Follow.find_by(follower: follower, following: following)
 
     if follow&.destroy
-      render json: { message: 'フォローを解除しました' }, status: :ok
+      render json: { message: "フォローを解除しました" }, status: :ok
     else
-      render json: { error: 'フォロー解除に失敗しました' }, status: :unprocessable_entity
+      render json: { error: "フォロー解除に失敗しました" }, status: :unprocessable_entity
     end
+  end
+
+  # フォローしたユーザーを新しい順に返すアクション
+  def recent_followings
+    user = User.find_by(name: params[:name])
+    followings = user.followings.order("follows.created_at DESC")
+
+    render json: followings.as_json(
+      include:{
+        posts: {},
+        tags: {},
+        followings: {},
+        followers: {},
+        follows_as_follower: {},
+        follows_as_following: {},
+      }
+    ), status: :ok
+  end
+
+  # フォローされているユーザーを新しい順で返すアクション
+  def recent_followers
+    user = User.find_by(name: params[:name])
+    followers = user.followers.order("follows.created_at DESC")
+
+    render json: followers.as_json(
+      include:{
+        posts: {},
+        tags: {},
+        followings: {},
+        followers: {},
+        follows_as_follower: {},
+        follows_as_following: {},
+      }
+    ), status: :ok
   end
 end
