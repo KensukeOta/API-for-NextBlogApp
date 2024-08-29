@@ -3,6 +3,13 @@ class User < ApplicationRecord
   has_many :likes, dependent: :destroy
   has_many :user_tags, dependent: :destroy
   has_many :tags, through: :user_tags
+  # フォローしているユーザーとの関連付け
+  has_many :follows_as_follower, class_name: 'Follow', foreign_key: 'follower_id', dependent: :destroy
+  has_many :followings, through: :follows_as_follower, source: :following
+
+  # フォロワーとの関連付け
+  has_many :follows_as_following, class_name: 'Follow', foreign_key: 'following_id', dependent: :destroy
+  has_many :followers, through: :follows_as_following, source: :follower
 
   has_secure_password
 

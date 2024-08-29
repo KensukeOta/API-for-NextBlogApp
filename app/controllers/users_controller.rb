@@ -4,15 +4,23 @@ class UsersController < ApplicationController
       @user = User.includes(:posts).find_by(email: user_params[:email], provider: user_params[:provider])
     end
     if user_params[:name]
-      @user = User.includes(:posts, :likes, :tags).find_by(name: user_params[:name])
+      @user = User.includes(:posts, :likes, :tags, :followers, :followings).find_by(name: user_params[:name])
     end
     
     if @user
       @posts = @user.posts.order(created_at: :desc)
       @likes = @user.likes.order(created_at: :desc)
       @tags = @user.tags
+      @followers = @user.followers.order(created_at: :desc)
+      @followings = @user.followings.order(created_at: :desc)
 
-      render json: @user.as_json.merge(posts: @posts, likes: @likes.as_json(include: { post: { include: [:user, :likes, :tags] } }), tags: @tags.as_json), include: { user: {}, likes: {}, tags: {} }, status: :ok
+      render json: @user.as_json.merge(
+        posts: @posts, 
+        likes: @likes.as_json(include: { post: { include: [:user, :likes, :tags] } }), 
+        tags: @tags.as_json, 
+        followers: @followers.as_json(include: { follows_as_following: { only: [:id, :follower_id, :following_id, :created_at] } }),
+        followings: @followings.as_json(include: { follows_as_follower: { only: [:id, :follower_id, :following_id, :created_at] } })
+      ), include: { user: {}, likes: {}, tags: {} }, status: :ok
     else
       @users = User.all
       render json: @users, status: :ok
