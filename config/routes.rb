@@ -14,5 +14,7 @@ Rails.application.routes.draw do
     resources :sessions, only: [:create]
     resources :posts
     resources :likes, only: [:create, :destroy]
+    resources :follows, only: [:create]
+    delete "/follows", to: "follows#destroy"
   end
 end
