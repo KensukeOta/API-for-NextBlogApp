@@ -18,5 +18,6 @@ Rails.application.routes.draw do
     delete "/follows", to: "follows#destroy"
     get "users/:name/recent_followings", to: "follows#recent_followings"
     get "users/:name/recent_followers",  to: "follows#recent_followers"
+    get "users/:id/timeline", to: "posts#timeline"
   end
 end
