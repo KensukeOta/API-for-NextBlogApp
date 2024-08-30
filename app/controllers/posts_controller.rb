@@ -59,6 +59,23 @@ class PostsController < ApplicationController
     @post.destroy
   end
 
+  # フォローしているユーザーの投稿を新しい順に取得するアクション
+  def timeline
+    user = User.find(params[:id])
+    # フォローしているユーザーのIDを取得
+    following_ids = user.followings.pluck(:id)
+    # フォローしているユーザーの投稿を取得し、新しい順に並べる
+    posts = Post.where(user_id: following_ids).order(created_at: :desc)
+
+    render json: posts.as_json(
+      include: {
+        user: {},
+        tags: {},
+        likes: {},
+      }
+    ), status: :ok
+  end
+
   private
 
     def post_params
