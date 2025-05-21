@@ -1,0 +1,26 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    image: nextblogapp-image
+    container_name: nextblogapp-container
+    volumes:
+      - .:/backend
+    ports:
+      - "8080:8080"
+    depends_on:
+      - db
+
+  db:
+    image: postgres:17.4
+    container_name: nextblogapp-db
+    volumes:
+      - nextblogapp-db-data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: kensuke
+      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: nextblogapp_development
+
+volumes:
+  nextblogapp-db-data:
