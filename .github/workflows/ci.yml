@@ -49,6 +49,13 @@ jobs:
         ports:
           - 5432:5432
         options: --health-cmd="pg_isready" --health-interval=10s --health-timeout=5s --health-retries=3
+    
+    env:
+      RAILS_ENV: test
+      PGHOST: localhost
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGDATABASE: nextblogapp_test
 
       # redis:
       #   image: redis
@@ -68,6 +75,11 @@ jobs:
         with:
           ruby-version: .ruby-version
           bundler-cache: true
+
+      - name: Set up test database
+        run: |
+          bin/rails db:create
+          bin/rails db:schema:load
 
       - name: Run tests
         env:

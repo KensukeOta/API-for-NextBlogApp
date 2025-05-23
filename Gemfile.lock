@@ -100,6 +100,11 @@ GEM
     erubi (1.13.1)
     et-orbi (1.2.11)
       tzinfo
+    factory_bot (6.5.1)
+      activesupport (>= 6.1.0)
+    factory_bot_rails (6.4.4)
+      factory_bot (~> 6.5)
+      railties (>= 5.0.0)
     fugit (1.11.1)
       et-orbi (~> 1, >= 1.2.11)
       raabro (~> 1.4)
@@ -313,6 +318,7 @@ DEPENDENCIES
   brakeman
   debug
   dotenv-rails
+  factory_bot_rails
   kamal
   pg (~> 1.1)
   puma (>= 5.0)
