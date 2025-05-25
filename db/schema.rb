@@ -10,13 +10,19 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_05_23_061627) do
+ActiveRecord::Schema[8.0].define(version: 2025_05_25_065822) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
-  create_table "hoges", force: :cascade do |t|
-    t.string "name"
+  create_table "users", force: :cascade do |t|
+    t.string "name", limit: 32, null: false
+    t.string "email", limit: 255, null: false
+    t.string "password_digest", null: false
+    t.string "image"
+    t.string "provider", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.index ["email", "provider"], name: "index_users_on_email_and_provider", unique: true
+    t.index ["name"], name: "index_users_on_name", unique: true
   end
 end
