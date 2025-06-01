@@ -14,7 +14,10 @@ class UsersController < ApplicationController
 
     user = User.new(user_params)
     if user.save
-      render json: { user: user.as_json(except: [ :password_digest ]), message: "ユーザー登録が完了しました" }, status: :created
+      render json: {
+        user: user.as_json(only: [ :id, :name, :email, :provider, :image ]),
+        message: "ユーザー登録が完了しました"
+      }, status: :created
     else
       render json: { errors: user.errors.full_messages }, status: :unprocessable_entity
     end
