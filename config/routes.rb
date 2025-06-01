@@ -9,5 +9,6 @@ Rails.application.routes.draw do
   # root "posts#index"
   scope :v1 do
     resources :users
+    resources :sessions, only: [ :create ]
   end
 end
