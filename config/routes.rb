@@ -10,5 +10,6 @@ Rails.application.routes.draw do
   scope :v1 do
     resources :users
     resources :sessions, only: [ :create ]
+    resources :oauth,    only: [ :create ]
   end
 end
