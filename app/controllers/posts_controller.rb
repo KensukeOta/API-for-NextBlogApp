@@ -12,6 +12,21 @@ class PostsController < ApplicationController
     }, status: :ok
   end
 
+  def show
+    post = Post.includes(:user).find_by(id: params[:id])
+
+    if post
+      render json: {
+        post: post.as_json(
+          only: [ :id, :title, :content, :user_id, :created_at, :updated_at ],
+          include: { user: { only: [ :id, :name, :email, :image, :provider ] } }
+        )
+      }, status: :ok
+    else
+      render json: { error: "記事が見つかりません" }, status: :not_found
+    end
+  end
+
   def create
     post = current_user.posts.build(post_params)
 
@@ -24,7 +39,7 @@ class PostsController < ApplicationController
 
   private
 
-  def post_params
-    params.expect(post: [ :title, :content ])
-  end
+    def post_params
+      params.expect(post: [ :title, :content ])
+    end
 end
