@@ -38,6 +38,35 @@ RSpec.describe "Posts", type: :request do
     end
   end
 
+  describe "GET /v1/posts/:id" do
+    # 記事とユーザーを用意
+    let!(:user) { create(:user, name: "kensuke", email: "kensuke@example.com") }
+    let!(:post) { create(:post, title: "Sample Post", content: "This is the post content.", user: user) }
+
+    # 正常系: 存在する記事を取得できる
+    # 記事の内容・ユーザー情報が返ってくることを検証
+    it "returns a post with user info if post exists" do
+      get "/v1/posts/#{post.id}"
+      expect(response).to have_http_status(:ok)
+      json = JSON.parse(response.body)
+      expect(json).to have_key("post")
+      expect(json["post"]["id"]).to eq(post.id)
+      expect(json["post"]["title"]).to eq("Sample Post")
+      expect(json["post"]["content"]).to eq("This is the post content.")
+      expect(json["post"]["user"]["name"]).to eq("kensuke")
+      expect(json["post"]["user"]["email"]).to eq("kensuke@example.com")
+      expect(json["post"]["user"]["provider"]).to eq("credentials")
+    end
+
+    # 異常系: 存在しないIDを指定した場合
+    it "returns 404 and error message if post does not exist" do
+      get "/v1/posts/999999"
+      expect(response).to have_http_status(:not_found)
+      json = JSON.parse(response.body)
+      expect(json["error"]).to eq("記事が見つかりません")
+    end
+  end
+
   describe "POST /v1/posts" do
     # テストユーザーと投稿パラメータを準備
     let(:user) { create(:user) }
