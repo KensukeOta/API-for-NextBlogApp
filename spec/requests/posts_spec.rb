@@ -1,6 +1,43 @@
 require 'rails_helper'
 
 RSpec.describe "Posts", type: :request do
+  describe "GET /v1/posts" do
+    let!(:user1) { create(:user, name: "user1", email: "user1@example.com") }
+    let!(:user2) { create(:user, name: "user2", email: "user2@example.com") }
+    let!(:old_post) { create(:post, title: "Oldest Post", user: user1, created_at: 1.day.ago) }
+    let!(:new_post) { create(:post, title: "Newest Post", user: user2, created_at: Time.current) }
+
+    # 全ての投稿が新しい順で返り、各投稿にユーザー情報が含まれることを検証
+    it "returns all posts in descending order of creation, including user info" do
+      get "/v1/posts"
+
+      expect(response).to have_http_status(:ok)
+      json = JSON.parse(response.body)
+
+      # JSON形式が { "posts": [ ... ] } であること
+      expect(json).to have_key("posts")
+      expect(json["posts"].size).to eq(2)
+
+      # 新しい順で並んでいること
+      expect(json["posts"][0]["title"]).to eq("Newest Post")
+      expect(json["posts"][1]["title"]).to eq("Oldest Post")
+
+      # ユーザー情報が正しく入っていること
+      expect(json["posts"][0]["user"]["name"]).to eq("user2")
+      expect(json["posts"][0]["user"]["email"]).to eq("user2@example.com")
+      expect(json["posts"][1]["user"]["name"]).to eq("user1")
+      expect(json["posts"][1]["user"]["email"]).to eq("user1@example.com")
+    end
+
+    # 投稿が存在しない場合は空配列が返ることを検証
+    it "returns empty array if there are no posts" do
+      Post.delete_all
+      get "/v1/posts"
+      json = JSON.parse(response.body)
+      expect(json["posts"]).to eq([])
+    end
+  end
+
   describe "POST /v1/posts" do
     # テストユーザーと投稿パラメータを準備
     let(:user) { create(:user) }
