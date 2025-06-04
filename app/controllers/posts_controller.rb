@@ -1,5 +1,5 @@
 class PostsController < ApplicationController
-  before_action :find_current_user_by_header, only: [ :create ]
+  before_action :find_current_user_by_header, only: [ :create, :update ]
 
   def index
     posts = Post.includes(:user).order(created_at: :desc)
@@ -32,6 +32,32 @@ class PostsController < ApplicationController
 
     if post.save
       render json: { post: post.as_json(only: [ :id, :title, :content, :user_id, :created_at, :updated_at ]) }, status: :created
+    else
+      render json: { errors: post.errors.full_messages }, status: :unprocessable_entity
+    end
+  end
+
+  def update
+    post = Post.find_by(id: params[:id])
+
+    if post.nil?
+      render json: { error: "記事が見つかりません" }, status: :not_found
+      return
+    end
+
+    # 他人の記事を更新しようとした場合
+    unless post.user_id == current_user.id
+      render json: { error: "権限がありません" }, status: :forbidden
+      return
+    end
+
+    if post.update(post_params)
+      render json: {
+        post: post.as_json(
+          only: [ :id, :title, :content, :user_id, :created_at, :updated_at ],
+          include: { user: { only: [ :id, :name, :email, :image, :provider ] } }
+        )
+      }, status: :ok
     else
       render json: { errors: post.errors.full_messages }, status: :unprocessable_entity
     end
