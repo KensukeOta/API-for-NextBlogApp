@@ -137,4 +137,66 @@ RSpec.describe "Posts", type: :request do
       expect(json["error"]).to eq("認証が必要です")
     end
   end
+
+  describe "PATCH /v1/posts/:id" do
+    let!(:user)  { create(:user) }
+    let!(:other) { create(:user) }
+    let!(:post_record) { create(:post, user: user, title: "Old Title", content: "Old Content") }
+
+    # 認証ヘッダーを付与するヘルパー
+    def auth_headers(u)
+      { "X-USER-ID" => u.id.to_s }
+    end
+
+    # 正常系: 自分の記事を更新できる
+    # 更新後の内容が返却され、200となることを検証
+    it "updates the post and returns the updated post if current_user is the owner" do
+      patch "/v1/posts/#{post_record.id}",
+        params: { post: { title: "New Title", content: "Updated Content" } },
+        headers: auth_headers(user)
+
+      expect(response).to have_http_status(:ok)
+      json = JSON.parse(response.body)
+      expect(json["post"]["title"]).to eq("New Title")
+      expect(json["post"]["content"]).to eq("Updated Content")
+      expect(json["post"]["user"]["id"]).to eq(user.id)
+    end
+
+    # 異常系: 記事が存在しない場合
+    # 404とエラーメッセージを返すことを検証
+    it "returns 404 if post does not exist" do
+      patch "/v1/posts/999999",
+        params: { post: { title: "Doesn't matter", content: "..." } },
+        headers: auth_headers(user)
+
+      expect(response).to have_http_status(:not_found)
+      json = JSON.parse(response.body)
+      expect(json["error"]).to eq("記事が見つかりません")
+    end
+
+    # 異常系: 他人の記事を更新しようとした場合
+    # 403とエラーメッセージを返すことを検証
+    it "returns 403 if current_user is not the owner" do
+      patch "/v1/posts/#{post_record.id}",
+        params: { post: { title: "Hacked Title", content: "..." } },
+        headers: auth_headers(other)
+
+      expect(response).to have_http_status(:forbidden)
+      json = JSON.parse(response.body)
+      expect(json["error"]).to eq("権限がありません")
+    end
+
+    # 異常系: バリデーションエラー
+    # 422とエラーメッセージを返すことを検証
+    it "returns 422 if params are invalid" do
+      patch "/v1/posts/#{post_record.id}",
+        params: { post: { title: "", content: "short" } },
+        headers: auth_headers(user)
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      json = JSON.parse(response.body)
+      expect(json["errors"]).to include("Title is too short (minimum is 3 characters)")
+      expect(json["errors"]).to include("Content is too short (minimum is 10 characters)")
+    end
+  end
 end
