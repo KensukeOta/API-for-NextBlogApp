@@ -199,4 +199,59 @@ RSpec.describe "Posts", type: :request do
       expect(json["errors"]).to include("Content is too short (minimum is 10 characters)")
     end
   end
+
+  describe "DELETE /v1/posts/:id" do
+    let!(:user) { create(:user) }
+    let!(:other_user) { create(:user) }
+    let!(:post_record) { create(:post, user: user) }
+
+    # 認証ヘッダーを付与するヘルパー
+    def auth_headers(u)
+      { "X-USER-ID" => u.id.to_s }
+    end
+
+    # 正常系: 投稿者自身なら削除できる
+    it "deletes the post if current_user is the owner" do
+      expect {
+        delete "/v1/posts/#{post_record.id}", headers: auth_headers(user)
+      }.to change(Post, :count).by(-1)
+
+      expect(response).to have_http_status(:ok)
+      json = JSON.parse(response.body)
+      expect(json["message"]).to eq("記事を削除しました")
+    end
+
+    # 異常系: 存在しない記事ID
+    it "returns 404 if the post does not exist" do
+      expect {
+        delete "/v1/posts/999999", headers: auth_headers(user)
+      }.not_to change(Post, :count)
+
+      expect(response).to have_http_status(:not_found)
+      json = JSON.parse(response.body)
+      expect(json["error"]).to eq("記事が見つかりません")
+    end
+
+    # 異常系: 他人の記事を削除しようとした場合
+    it "returns 403 if current_user is not the owner" do
+      expect {
+        delete "/v1/posts/#{post_record.id}", headers: auth_headers(other_user)
+      }.not_to change(Post, :count)
+
+      expect(response).to have_http_status(:forbidden)
+      json = JSON.parse(response.body)
+      expect(json["error"]).to eq("権限がありません")
+    end
+
+    # 異常系: 認証ヘッダーがない場合
+    it "returns 401 if X-USER-ID header is missing" do
+      expect {
+        delete "/v1/posts/#{post_record.id}"
+      }.not_to change(Post, :count)
+
+      expect(response).to have_http_status(:unauthorized)
+      json = JSON.parse(response.body)
+      expect(json["error"]).to eq("認証が必要です")
+    end
+  end
 end
