@@ -114,6 +114,60 @@ RSpec.describe "Posts", type: :request do
     end
   end
 
+  describe "GET /v1/posts with pagination" do
+    let!(:user) { create(:user, name: "ページネーションテスト", email: "pagination@example.com") }
+  
+    before do
+      # 15件の投稿データを作成
+      15.times do |i|
+        create(:post, title: "Post #{i + 1}", user: user, created_at: i.hours.ago)
+      end
+    end
+  
+    # 1ページ目の投稿が10件返り、total_countが15になることを確認
+    it "1ページ目の投稿と件数が正しく返ること" do
+      get "/v1/posts", params: { page: 1, per: 10 }
+      expect(response).to have_http_status(:ok)
+      json = JSON.parse(response.body)
+      expect(json).to have_key("posts")
+      expect(json).to have_key("total_count")
+      expect(json["posts"].size).to eq(10)
+      expect(json["total_count"]).to eq(15)
+      expect(json["posts"].first["title"]).to eq("Post 1")
+      expect(json["posts"].last["title"]).to eq("Post 10")
+    end
+  
+    # 2ページ目の投稿が5件返り、total_countが15になることを確認
+    it "2ページ目の投稿と件数が正しく返ること" do
+      get "/v1/posts", params: { page: 2, per: 10 }
+      expect(response).to have_http_status(:ok)
+      json = JSON.parse(response.body)
+      expect(json["posts"].size).to eq(5)
+      expect(json["total_count"]).to eq(15)
+      expect(json["posts"].first["title"]).to eq("Post 11")
+      expect(json["posts"].last["title"]).to eq("Post 15")
+    end
+  
+    # pageやperの指定がない場合、デフォルトで1ページ目10件が返ることを確認
+    it "パラメータ未指定時はデフォルト値（1ページ目・10件）が返ること" do
+      get "/v1/posts"
+      expect(response).to have_http_status(:ok)
+      json = JSON.parse(response.body)
+      expect(json["posts"].size).to eq(10)
+      expect(json["total_count"]).to eq(15)
+    end
+  
+    # 投稿が存在しない場合、空配列とtotal_count=0が返ることを確認
+    it "投稿が存在しない場合は空配列と件数0が返ること" do
+      Post.delete_all
+      get "/v1/posts"
+      expect(response).to have_http_status(:ok)
+      json = JSON.parse(response.body)
+      expect(json["posts"]).to eq([])
+      expect(json["total_count"]).to eq(0)
+    end
+  end
+
   describe "POST /v1/posts" do
     # テストユーザーと投稿パラメータを準備
     let(:user) { create(:user) }
