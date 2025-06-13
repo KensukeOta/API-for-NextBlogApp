@@ -38,6 +38,53 @@ RSpec.describe "Posts", type: :request do
     end
   end
 
+  # 記事検索機能のテスト
+  describe "GET /v1/posts?q=" do
+    let!(:user1) { create(:user, name: "user1", email: "user1@example.com") }
+    let!(:user2) { create(:user, name: "special author", email: "user2@example.com") }
+    let!(:post1) { create(:post, title: "Ruby on Rails", user: user1) }
+    let!(:post2) { create(:post, title: "React入門", user: user2) }
+    let!(:post3) { create(:post, title: "JavaScript Tips", user: user2) }
+
+    # タイトルで検索できること
+    it "returns posts filtered by title (partial match)" do
+      get "/v1/posts", params: { q: "Ruby" }
+      expect(response).to have_http_status(:ok)
+      json = JSON.parse(response.body)
+      # "Ruby on Rails"のみヒット
+      expect(json["posts"].length).to eq(1)
+      expect(json["posts"].first["title"]).to eq("Ruby on Rails")
+    end
+
+    # 著者名（user.name）で検索できること
+    it "returns posts filtered by author name (partial match)" do
+      get "/v1/posts", params: { q: "special" }
+      expect(response).to have_http_status(:ok)
+      json = JSON.parse(response.body)
+      # user2の投稿2件がヒット
+      expect(json["posts"].length).to eq(2)
+      expect(json["posts"].map { |p| p["user"]["name"] }).to all(include("special author"))
+    end
+
+    # 大文字小文字を区別しない（PostgreSQLのILIKE）
+    it "returns posts with case-insensitive matching" do
+      get "/v1/posts", params: { q: "rails" }
+      expect(response).to have_http_status(:ok)
+      json = JSON.parse(response.body)
+      # "Ruby on Rails"のみヒット
+      expect(json["posts"].length).to eq(1)
+      expect(json["posts"].first["title"]).to eq("Ruby on Rails")
+    end
+
+    # 該当なしの場合は空配列
+    it "returns empty array if no posts match the search query" do
+      get "/v1/posts", params: { q: "notfound" }
+      expect(response).to have_http_status(:ok)
+      json = JSON.parse(response.body)
+      expect(json["posts"]).to eq([])
+    end
+  end
+
   describe "GET /v1/posts/:id" do
     # 記事とユーザーを用意
     let!(:user) { create(:user, name: "kensuke", email: "kensuke@example.com") }
