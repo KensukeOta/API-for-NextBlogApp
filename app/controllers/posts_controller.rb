@@ -3,25 +3,32 @@ class PostsController < ApplicationController
   before_action :set_post, only: [ :update, :destroy ]
 
   def index
-  # クエリパラメータ q 取得（例: /v1/posts?q=テスト）
-  query = params[:q]
+    # クエリパラメータ q 取得（例: /v1/posts?q=テスト）
+    query = params[:q]
+    # ページ番号（1始まり。なければ1）
+    page = params[:page].to_i > 0 ? params[:page].to_i : 1
+    # 1ページあたり件数（なければ10）
+    per_page = params[:per].to_i > 0 ? params[:per].to_i : 10
 
-  posts = Post.includes(:user)
-  if query.present?
-    # タイトルまたは著者名（user.name）で部分一致検索
-    posts = posts.references(:user).where(
-      "posts.title ILIKE :q OR users.name ILIKE :q", q: "%#{query}%"
-    )
-  end
+    posts = Post.includes(:user)
+    if query.present?
+      # タイトルまたは著者名（user.name）で部分一致検索
+      posts = posts.references(:user).where(
+        "posts.title ILIKE :q OR users.name ILIKE :q", q: "%#{query}%"
+      )
+    end
 
-  posts = posts.order(created_at: :desc)
+    total_count = posts.count
 
-  render json: {
-    posts: posts.as_json(
-      only: [ :id, :title, :content, :user_id, :created_at, :updated_at ],
-      include: { user: { only: [ :id, :name, :email, :image, :provider ] } }
-    )
-  }, status: :ok
+    posts = posts.order(created_at: :desc).limit(per_page).offset((page - 1) * per_page)
+
+    render json: {
+      posts: posts.as_json(
+        only: [ :id, :title, :content, :user_id, :created_at, :updated_at ],
+        include: { user: { only: [ :id, :name, :email, :image, :provider ] } }
+      ),
+      total_count: total_count
+    }, status: :ok
   end
 
   def show
