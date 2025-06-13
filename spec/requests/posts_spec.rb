@@ -116,14 +116,14 @@ RSpec.describe "Posts", type: :request do
 
   describe "GET /v1/posts with pagination" do
     let!(:user) { create(:user, name: "ページネーションテスト", email: "pagination@example.com") }
-  
+
     before do
       # 15件の投稿データを作成
       15.times do |i|
         create(:post, title: "Post #{i + 1}", user: user, created_at: i.hours.ago)
       end
     end
-  
+
     # 1ページ目の投稿が10件返り、total_countが15になることを確認
     it "1ページ目の投稿と件数が正しく返ること" do
       get "/v1/posts", params: { page: 1, per: 10 }
@@ -136,7 +136,7 @@ RSpec.describe "Posts", type: :request do
       expect(json["posts"].first["title"]).to eq("Post 1")
       expect(json["posts"].last["title"]).to eq("Post 10")
     end
-  
+
     # 2ページ目の投稿が5件返り、total_countが15になることを確認
     it "2ページ目の投稿と件数が正しく返ること" do
       get "/v1/posts", params: { page: 2, per: 10 }
@@ -147,7 +147,7 @@ RSpec.describe "Posts", type: :request do
       expect(json["posts"].first["title"]).to eq("Post 11")
       expect(json["posts"].last["title"]).to eq("Post 15")
     end
-  
+
     # pageやperの指定がない場合、デフォルトで1ページ目10件が返ることを確認
     it "パラメータ未指定時はデフォルト値（1ページ目・10件）が返ること" do
       get "/v1/posts"
@@ -156,7 +156,7 @@ RSpec.describe "Posts", type: :request do
       expect(json["posts"].size).to eq(10)
       expect(json["total_count"]).to eq(15)
     end
-  
+
     # 投稿が存在しない場合、空配列とtotal_count=0が返ることを確認
     it "投稿が存在しない場合は空配列と件数0が返ること" do
       Post.delete_all
