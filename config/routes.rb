@@ -8,6 +8,7 @@ Rails.application.routes.draw do
   # Defines the root path route ("/")
   # root "posts#index"
   scope :v1 do
+    get "users/:name", to: "users#show_by_name"
     resources :users
     resources :sessions, only: [ :create ]
     resources :oauth,    only: [ :create ]

@@ -1,4 +1,37 @@
 class UsersController < ApplicationController
+  def show_by_name
+    user = User.includes(:posts).find_by(name: params[:name])
+    if user
+      # postsを新しい順にソートしてから as_json で連携
+      posts = user.posts.order(created_at: :desc)
+
+      render json: {
+        user: user.as_json(
+          only: [ :id, :name, :email, :image, :provider ],
+          include: {
+            posts: {
+              only: [ :id, :title, :content, :created_at, :updated_at ],
+              include: {
+                user: {
+                  only: [ :id, :name, :email, :image, :provider ]
+                }
+              }
+            }
+          }
+        ).merge("posts" => posts.as_json(
+          only: [ :id, :title, :content, :created_at, :updated_at ],
+          include: {
+            user: {
+              only: [ :id, :name, :email, :image, :provider ]
+            }
+          }
+        ))
+      }, status: :ok
+    else
+      render json: { error: "ユーザーが見つかりません" }, status: :not_found
+    end
+  end
+
   def create
     # email+providerの組み合わせの存在チェック
     if User.find_by(email: user_params[:email], provider: user_params[:provider])
