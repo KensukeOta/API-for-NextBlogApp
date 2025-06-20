@@ -1,6 +1,70 @@
 require 'rails_helper'
 
 RSpec.describe "Users", type: :request do
+  describe "GET /v1/users/:name (show_by_name)" do
+    let(:user) { create(:user, name: "showtestuser") }
+
+    # ユーザーが存在し、そのユーザーに3件の記事が紐づいている場合
+    # 各記事には異なるcreated_atを与える
+    let!(:post1) { create(:post, user: user, title: "Oldest Post", created_at: 3.days.ago) }
+    let!(:post2) { create(:post, user: user, title: "Middle Post", created_at: 2.days.ago) }
+    let!(:post3) { create(:post, user: user, title: "Newest Post", created_at: 1.day.ago) }
+    let(:posts) { [ post1, post2, post3 ] }
+
+    # ユーザー情報・記事情報・記事ごとのuser情報・新しい順で返却されること
+    it "returns user info and posts when the user exists" do
+      get "/v1/users/#{user.name}"
+
+      expect(response).to have_http_status(:ok)
+      json = JSON.parse(response.body)
+
+      # ユーザー情報を検証
+      expect(json["user"]["id"]).to eq(user.id)
+      expect(json["user"]["name"]).to eq(user.name)
+      expect(json["user"]["email"]).to eq(user.email)
+      expect(json["user"]["provider"]).to eq(user.provider)
+      expect(json["user"]["image"]).to eq(user.image)
+
+      # 投稿記事の数と内容を検証
+      expect(json["user"]["posts"].size).to eq(3)
+
+      # 新しい順で返っていることを検証
+      expected_titles = posts.sort_by(&:created_at).reverse.map(&:title)
+      returned_titles = json["user"]["posts"].map { |p| p["title"] }
+      expect(returned_titles).to eq(expected_titles)
+
+      # 各記事のuser情報も検証
+      json["user"]["posts"].each do |post_json|
+        post_user = post_json["user"]
+        expect(post_user["id"]).to eq(user.id)
+        expect(post_user["name"]).to eq(user.name)
+        expect(post_user["email"]).to eq(user.email)
+        expect(post_user["provider"]).to eq(user.provider)
+        expect(post_user["image"]).to eq(user.image)
+      end
+    end
+
+    # ユーザーが存在しない場合
+    it "returns 404 when the user does not exist" do
+      get "/v1/users/nonexistentuser"
+      expect(response).to have_http_status(:not_found)
+      json = JSON.parse(response.body)
+      expect(json["error"]).to eq("ユーザーが見つかりません")
+    end
+
+    # 記事が1件も存在しない場合
+    # postsが空配列になることを確認
+    it "returns user info with empty posts array when user has no posts" do
+      # 別ユーザーを作成（投稿は作成しない）
+      user_without_posts = create(:user, name: "nopostuser")
+      get "/v1/users/#{user_without_posts.name}"
+
+      expect(response).to have_http_status(:ok)
+      json = JSON.parse(response.body)
+      expect(json["user"]["posts"]).to eq([])
+    end
+  end
+
   describe "POST /v1/users" do
     let(:valid_attributes) do
       {
