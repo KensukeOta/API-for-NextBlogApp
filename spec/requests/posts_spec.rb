@@ -7,10 +7,14 @@ RSpec.describe "Posts", type: :request do
     let!(:old_post) { create(:post, title: "Oldest Post", user: user1, created_at: 1.day.ago) }
     let!(:new_post) { create(:post, title: "Newest Post", user: user2, created_at: Time.current) }
 
-    # 全ての投稿が新しい順で返り、各投稿にユーザー情報が含まれることを検証
-    it "returns all posts in descending order of creation, including user info" do
-      get "/v1/posts"
+    # 全ての投稿が新しい順で返り、各投稿にユーザー情報といいね情報が含まれることを検証
+    it "returns all posts in descending order of creation, including user info and likes info" do
+      # それぞれの投稿に「いいね」をつけておく
+      _like1 = create(:like, user: user1, post: old_post)
+      _like2 = create(:like, user: user2, post: new_post)
+      _like3 = create(:like, user: user1, post: new_post) # new_postに2件のいいね
 
+      get "/v1/posts"
       expect(response).to have_http_status(:ok)
       json = JSON.parse(response.body)
 
@@ -18,9 +22,16 @@ RSpec.describe "Posts", type: :request do
       expect(json).to have_key("posts")
       expect(json["posts"].size).to eq(2)
 
+      # likesの配列が存在し、内容を検証
+      # new_post
       # 新しい順で並んでいること
       expect(json["posts"][0]["title"]).to eq("Newest Post")
+      expect(json["posts"][0]["likes"]).to be_a(Array)
+      expect(json["posts"][0]["likes"].length).to eq(2)
+      # old_post
       expect(json["posts"][1]["title"]).to eq("Oldest Post")
+      expect(json["posts"][1]["likes"]).to be_a(Array)
+      expect(json["posts"][1]["likes"].length).to eq(1)
 
       # ユーザー情報が正しく入っていること
       expect(json["posts"][0]["user"]["name"]).to eq("user2")
@@ -85,35 +96,6 @@ RSpec.describe "Posts", type: :request do
     end
   end
 
-  describe "GET /v1/posts/:id" do
-    # 記事とユーザーを用意
-    let!(:user) { create(:user, name: "kensuke", email: "kensuke@example.com") }
-    let!(:post) { create(:post, title: "Sample Post", content: "This is the post content.", user: user) }
-
-    # 正常系: 存在する記事を取得できる
-    # 記事の内容・ユーザー情報が返ってくることを検証
-    it "returns a post with user info if post exists" do
-      get "/v1/posts/#{post.id}"
-      expect(response).to have_http_status(:ok)
-      json = JSON.parse(response.body)
-      expect(json).to have_key("post")
-      expect(json["post"]["id"]).to eq(post.id)
-      expect(json["post"]["title"]).to eq("Sample Post")
-      expect(json["post"]["content"]).to eq("This is the post content.")
-      expect(json["post"]["user"]["name"]).to eq("kensuke")
-      expect(json["post"]["user"]["email"]).to eq("kensuke@example.com")
-      expect(json["post"]["user"]["provider"]).to eq("credentials")
-    end
-
-    # 異常系: 存在しないIDを指定した場合
-    it "returns 404 and error message if post does not exist" do
-      get "/v1/posts/999999"
-      expect(response).to have_http_status(:not_found)
-      json = JSON.parse(response.body)
-      expect(json["error"]).to eq("記事が見つかりません")
-    end
-  end
-
   describe "GET /v1/posts with pagination" do
     let!(:user) { create(:user, name: "ページネーションテスト", email: "pagination@example.com") }
 
@@ -165,6 +147,41 @@ RSpec.describe "Posts", type: :request do
       json = JSON.parse(response.body)
       expect(json["posts"]).to eq([])
       expect(json["total_count"]).to eq(0)
+    end
+  end
+
+  describe "GET /v1/posts/:id" do
+    # 記事とユーザーを用意
+    let!(:user) { create(:user, name: "kensuke", email: "kensuke@example.com") }
+    let!(:post) { create(:post, title: "Sample Post", content: "This is the post content.", user: user) }
+
+    # 正常系: 存在する記事を取得できる
+    # 記事の内容・ユーザー情報・いいね情報が返ってくることを検証
+    it "returns a post with user info and likes info if post exists" do
+      _like = create(:like, user: user, post: post)
+
+      get "/v1/posts/#{post.id}"
+      expect(response).to have_http_status(:ok)
+      json = JSON.parse(response.body)
+
+      expect(json).to have_key("post")
+      expect(json["post"]["id"]).to eq(post.id)
+      expect(json["post"]["title"]).to eq("Sample Post")
+      expect(json["post"]["content"]).to eq("This is the post content.")
+      expect(json["post"]["user"]["name"]).to eq("kensuke")
+      expect(json["post"]["user"]["email"]).to eq("kensuke@example.com")
+      expect(json["post"]["user"]["provider"]).to eq("credentials")
+      expect(json["post"]["likes"]).to be_a(Array)
+      expect(json["post"]["likes"].size).to eq(1)
+      expect(json["post"]["likes"].first["user_id"]).to eq(user.id)
+    end
+
+    # 異常系: 存在しないIDを指定した場合
+    it "returns 404 and error message if post does not exist" do
+      get "/v1/posts/999999"
+      expect(response).to have_http_status(:not_found)
+      json = JSON.parse(response.body)
+      expect(json["error"]).to eq("記事が見つかりません")
     end
   end
 

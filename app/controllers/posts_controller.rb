@@ -10,7 +10,7 @@ class PostsController < ApplicationController
     # 1ページあたり件数（なければ10）
     per_page = params[:per].to_i > 0 ? params[:per].to_i : 10
 
-    posts = Post.includes(:user)
+    posts = Post.includes(:user, :likes)
     if query.present?
       # タイトルまたは著者名（user.name）で部分一致検索
       posts = posts.references(:user).where(
@@ -25,20 +25,20 @@ class PostsController < ApplicationController
     render json: {
       posts: posts.as_json(
         only: [ :id, :title, :content, :user_id, :created_at, :updated_at ],
-        include: { user: { only: [ :id, :name, :email, :image, :provider ] } }
+        include: { user: { only: [ :id, :name, :email, :image, :provider ] }, likes: {} }
       ),
       total_count: total_count
     }, status: :ok
   end
 
   def show
-    post = Post.includes(:user).find_by(id: params[:id])
+    post = Post.includes(:user, :likes).find_by(id: params[:id])
 
     if post
       render json: {
         post: post.as_json(
           only: [ :id, :title, :content, :user_id, :created_at, :updated_at ],
-          include: { user: { only: [ :id, :name, :email, :image, :provider ] } }
+          include: { user: { only: [ :id, :name, :email, :image, :provider ] }, likes: {} }
         )
       }, status: :ok
     else
