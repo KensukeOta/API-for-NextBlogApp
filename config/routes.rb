@@ -13,5 +13,6 @@ Rails.application.routes.draw do
     resources :sessions, only: [ :create ]
     resources :oauth,    only: [ :create ]
     resources :posts
+    resources :likes,    only: [ :create, :destroy ]
   end
 end

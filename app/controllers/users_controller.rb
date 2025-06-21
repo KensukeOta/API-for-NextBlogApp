@@ -1,9 +1,13 @@
 class UsersController < ApplicationController
   def show_by_name
-    user = User.includes(:posts).find_by(name: params[:name])
+    user = User.includes(:posts, :likes).find_by(name: params[:name])
     if user
       # postsを新しい順にソートしてから as_json で連携
       posts = user.posts.order(created_at: :desc)
+      # いいねした新しい順に取得
+      liked_posts = user.liked_posts
+                        .select("posts.*, likes.created_at as liked_at")
+                        .order("likes.created_at DESC")
 
       render json: {
         user: user.as_json(
@@ -23,9 +27,21 @@ class UsersController < ApplicationController
           include: {
             user: {
               only: [ :id, :name, :email, :image, :provider ]
-            }
+            },
+            likes: {}
           }
-        ))
+        ),
+        "liked_posts" => liked_posts.as_json(
+            only: [ :id, :title, :content, :created_at, :updated_at ],
+            methods: [ :liked_at ],
+            include: {
+              user: {
+                only: [ :id, :name, :email, :image, :provider ]
+              },
+              likes: {}
+            }
+          )
+        )
       }, status: :ok
     else
       render json: { error: "ユーザーが見つかりません" }, status: :not_found
