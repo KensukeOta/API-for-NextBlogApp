@@ -100,5 +100,24 @@ RSpec.describe User, type: :model do
       user = build(:user, image: nil)
       expect(user).to be_valid
     end
+
+    # bioが200文字以内なら有効
+    it "is valid if bio is 200 characters or less" do
+      user = build(:user, bio: "a" * 200)
+      expect(user).to be_valid
+    end
+
+    # bioが201文字を超えると無効
+    it "is invalid if bio exceeds 200 characters" do
+      user = build(:user, bio: "a" * 201)
+      expect(user).not_to be_valid
+      expect(user.errors[:bio]).to include("is too long (maximum is 200 characters)")
+    end
+
+    # bioがnilでも有効
+    it "is valid if bio is nil" do
+      user = build(:user, bio: nil)
+      expect(user).to be_valid
+    end
   end
 end

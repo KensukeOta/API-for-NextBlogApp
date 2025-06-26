@@ -9,4 +9,5 @@ class User < ApplicationRecord
   validates :email, presence: true, uniqueness: { scope: :provider }, length: { maximum: 255 }, format: { with: URI::MailTo::EMAIL_REGEXP }
   validates :provider, presence: true
   validates :password, length: { minimum: 8, maximum: 64 }, allow_nil: true
+  validates :bio, length: { maximum: 200 }
 end
