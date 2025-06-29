@@ -1,4 +1,6 @@
 class UsersController < ApplicationController
+  before_action :find_current_user_by_header, only: [ :update ]
+
   def show_by_name
     user = User.includes(:posts, :likes).find_by(name: params[:name])
     if user
@@ -11,7 +13,7 @@ class UsersController < ApplicationController
 
       render json: {
         user: user.as_json(
-          only: [ :id, :name, :email, :image, :provider ],
+          only: [ :id, :name, :email, :image, :provider, :bio ],
           include: {
             posts: {
               only: [ :id, :title, :content, :created_at, :updated_at ],
@@ -72,9 +74,36 @@ class UsersController < ApplicationController
     end
   end
 
+  def update
+    user = User.find_by(id: params[:id])
+    unless user
+      return render json: { error: "ユーザーが見つかりません" }, status: :not_found
+    end
+
+    unless user.id == current_user.id
+      return render json: { error: "権限がありません" }, status: :forbidden
+    end
+
+    # ユーザー名が変更されていて、かつその名前が他のユーザーで既に使われていた場合
+    if user_params[:name].present? &&
+       user_params[:name] != user.name &&
+       User.exists?(name: user_params[:name])
+      return render json: { error: "この名前は既に使用されています" }, status: :unprocessable_entity
+    end
+
+    if user.update(user_params)
+      render json: {
+        user: user.as_json(only: [ :id, :name, :email, :provider, :image, :bio ]),
+        message: "ユーザー情報を更新しました"
+      }, status: :ok
+    else
+      render json: { errors: user.errors.full_messages }, status: :unprocessable_entity
+    end
+  end
+
   private
 
     def user_params
-      params.expect(user: [ :name, :email, :provider, :password, :password_confirmation, :image ])
+      params.expect(user: [ :name, :email, :provider, :password, :password_confirmation, :image, :bio ])
     end
 end

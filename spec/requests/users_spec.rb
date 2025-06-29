@@ -2,7 +2,7 @@ require 'rails_helper'
 
 RSpec.describe "Users", type: :request do
   describe "GET /v1/users/:name (show_by_name)" do
-    let(:user) { create(:user, name: "showtestuser") }
+    let(:user) { create(:user, name: "showtestuser", bio: "自己紹介テストです。") }
 
     # ユーザーが存在し、そのユーザーに3件の記事が紐づいている場合
     # 各記事には異なるcreated_atを与える
@@ -34,6 +34,7 @@ RSpec.describe "Users", type: :request do
       expect(json["user"]["email"]).to eq(user.email)
       expect(json["user"]["provider"]).to eq(user.provider)
       expect(json["user"]["image"]).to eq(user.image)
+      expect(json["user"]["bio"]).to eq("自己紹介テストです。")
 
       # 投稿記事の数と内容を検証
       expect(json["user"]["posts"].size).to eq(3)
@@ -91,6 +92,15 @@ RSpec.describe "Users", type: :request do
       json = JSON.parse(response.body)
       expect(json["user"]["posts"]).to eq([])
       expect(json["user"]["liked_posts"]).to eq([])
+    end
+
+    it "returns bio as nil if not set" do
+      user_without_bio = create(:user, name: "nobiouser", bio: nil)
+      get "/v1/users/#{user_without_bio.name}"
+
+      expect(response).to have_http_status(:ok)
+      json = JSON.parse(response.body)
+      expect(json["user"]["bio"]).to be_nil
     end
   end
 
@@ -150,6 +160,87 @@ RSpec.describe "Users", type: :request do
       expect(response).to have_http_status(:unprocessable_entity)
       json = JSON.parse(response.body)
       expect(json["errors"]).to include("Password is too short (minimum is 8 characters)")
+    end
+  end
+
+  describe "PATCH /v1/users/:id" do
+    let!(:user) { create(:user, name: "original_name", email: "user@example.com", bio: "old bio") }
+    let(:headers) { { "X-USER-ID" => user.id } }
+
+    # 他のユーザー（権限チェックや重複名チェック用）
+    let!(:other_user) { create(:user, name: "taken_name") }
+
+    # 正常系：自分の情報を更新できる
+    it "updates own user info successfully" do
+      patch "/v1/users/#{user.id}", params: {
+        user: {
+          name: "new_name",
+          bio: "new bio"
+        }
+      }, headers: headers
+
+      expect(response).to have_http_status(:ok)
+      json = JSON.parse(response.body)
+      expect(json["user"]["id"]).to eq(user.id)
+      expect(json["user"]["name"]).to eq("new_name")
+      expect(json["user"]["bio"]).to eq("new bio")
+      expect(json["message"]).to eq("ユーザー情報を更新しました")
+    end
+
+    # 異常系：存在しないユーザーIDを指定した場合
+    it "returns 404 if user does not exist" do
+      patch "/v1/users/00000000-0000-0000-0000-000000000000", params: {
+        user: { name: "any", bio: "any" }
+      }, headers: headers
+
+      expect(response).to have_http_status(:not_found)
+      json = JSON.parse(response.body)
+      expect(json["error"]).to eq("ユーザーが見つかりません")
+    end
+
+    # 異常系：他人の情報は更新できない
+    it "returns forbidden if trying to update another user" do
+      patch "/v1/users/#{other_user.id}", params: {
+        user: { name: "changed", bio: "changed" }
+      }, headers: headers
+
+      expect(response).to have_http_status(:forbidden)
+      json = JSON.parse(response.body)
+      expect(json["error"]).to eq("権限がありません")
+    end
+
+    # 異常系：ユーザー名が重複している場合
+    it "returns error if name is already taken by another user" do
+      patch "/v1/users/#{user.id}", params: {
+        user: { name: "taken_name", bio: "any" }
+      }, headers: headers
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      json = JSON.parse(response.body)
+      expect(json["error"]).to eq("この名前は既に使用されています")
+    end
+
+    # 異常系：バリデーションエラー（例：名前が短すぎる場合）
+    it "returns validation errors if params are invalid" do
+      patch "/v1/users/#{user.id}", params: {
+        user: { name: "a", bio: "b" }
+      }, headers: headers
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      json = JSON.parse(response.body)
+      expect(json["errors"]).to include("Name is too short (minimum is 3 characters)")
+    end
+
+    # 異常系：認証ヘッダーがない場合
+    it "returns unauthorized if header is missing" do
+      patch "/v1/users/#{user.id}", params: {
+        user: { name: "noheader", bio: "noheader" }
+      }
+      # headersなし
+
+      expect(response).to have_http_status(:unauthorized)
+      json = JSON.parse(response.body)
+      expect(json["error"]).to eq("認証が必要です")
     end
   end
 end
