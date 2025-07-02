@@ -1,5 +1,5 @@
 class UsersController < ApplicationController
-  before_action :find_current_user_by_header, only: [ :update ]
+  before_action :find_current_user_by_header, only: [ :update, :destroy ]
 
   def show_by_name
     user = User.includes(:posts, :likes).find_by(name: params[:name])
@@ -98,6 +98,23 @@ class UsersController < ApplicationController
       }, status: :ok
     else
       render json: { errors: user.errors.full_messages }, status: :unprocessable_entity
+    end
+  end
+
+  def destroy
+    user = User.find_by(id: params[:id])
+    unless user
+      return render json: { error: "ユーザーが見つかりません" }, status: :not_found
+    end
+
+    unless user.id == current_user.id
+      return render json: { error: "権限がありません" }, status: :forbidden
+    end
+
+    if user.destroy
+      render json: { message: "ユーザーを削除しました" }, status: :ok
+    else
+      render json: { error: "ユーザーの削除に失敗しました" }, status: :unprocessable_entity
     end
   end
 
