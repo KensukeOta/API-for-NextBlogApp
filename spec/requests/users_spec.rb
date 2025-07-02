@@ -243,4 +243,54 @@ RSpec.describe "Users", type: :request do
       expect(json["error"]).to eq("認証が必要です")
     end
   end
+
+  describe "DELETE /v1/users/:id" do
+    # テストユーザー・ヘッダー
+    let!(:user) { create(:user, name: "delete_user") }
+    let(:headers) { { "X-USER-ID" => user.id } }
+
+    # 他のユーザー（権限確認用）
+    let!(:other_user) { create(:user, name: "otheruser") }
+
+    # 正常系：自分のユーザーを削除できる
+    it "deletes own user successfully" do
+      expect {
+        delete "/v1/users/#{user.id}", headers: headers
+      }.to change(User, :count).by(-1)
+
+      expect(response).to have_http_status(:ok)
+      json = JSON.parse(response.body)
+      expect(json["message"]).to eq("ユーザーを削除しました")
+    end
+
+    # 異常系：存在しないユーザーIDを指定した場合
+    it "returns 404 if user does not exist" do
+      expect {
+        delete "/v1/users/00000000-0000-0000-0000-000000000000", headers: headers
+      }.not_to change(User, :count)
+
+      expect(response).to have_http_status(:not_found)
+      json = JSON.parse(response.body)
+      expect(json["error"]).to eq("ユーザーが見つかりません")
+    end
+
+    # 異常系：他人のユーザーを削除しようとした場合
+    it "returns forbidden if trying to delete another user" do
+      expect {
+        delete "/v1/users/#{other_user.id}", headers: headers
+      }.not_to change(User, :count)
+
+      expect(response).to have_http_status(:forbidden)
+      json = JSON.parse(response.body)
+      expect(json["error"]).to eq("権限がありません")
+    end
+
+    # 異常系：認証ヘッダーがない場合
+    it "returns unauthorized if header is missing" do
+      delete "/v1/users/#{user.id}"
+      expect(response).to have_http_status(:unauthorized)
+      json = JSON.parse(response.body)
+      expect(json["error"]).to eq("認証が必要です")
+    end
+  end
 end
