@@ -10,9 +10,10 @@ Rails.application.routes.draw do
   scope :v1 do
     get "users/:name", to: "users#show_by_name"
     resources :users
-    resources :sessions, only: [ :create ]
-    resources :oauth,    only: [ :create ]
+    resources :user_social_profiles, only: [ :create, :update, :destroy ]
+    resources :sessions,             only: [ :create ]
+    resources :oauth,                only: [ :create ]
     resources :posts
-    resources :likes,    only: [ :create, :destroy ]
+    resources :likes,                only: [ :create, :destroy ]
   end
 end

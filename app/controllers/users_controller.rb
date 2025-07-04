@@ -22,6 +22,9 @@ class UsersController < ApplicationController
                   only: [ :id, :name, :email, :image, :provider ]
                 }
               }
+            },
+            user_social_profiles: {
+              only: [ :id, :provider, :url ]
             }
           }
         ).merge("posts" => posts.as_json(

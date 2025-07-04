@@ -11,6 +11,11 @@ RSpec.describe "Users", type: :request do
     let!(:post3) { create(:post, user: user, title: "Newest Post", created_at: 1.day.ago) }
     let(:posts) { [ post1, post2, post3 ] }
 
+    # SNS情報も用意
+    let!(:twitter_profile)  { create(:user_social_profile, user: user, provider: "twitter",  url: "https://x.com/testuser") }
+    let!(:youtube_profile)  { create(:user_social_profile, user: user, provider: "youtube",  url: "https://youtube.com/testuser") }
+    let!(:instagram_profile) { create(:user_social_profile, user: user, provider: "instagram", url: "https://instagram.com/testuser") }
+
     # 他ユーザー＆他記事も用意
     let!(:other_user) { create(:user, name: "otheruser") }
     let!(:other_post1) { create(:post, user: other_user, title: "Other Post1", created_at: 4.days.ago) }
@@ -71,6 +76,15 @@ RSpec.describe "Users", type: :request do
         expect(post_user["id"]).not_to eq(user.id) # 他ユーザー
         expect(post_user["name"]).to be_present
       end
+
+      # SNS情報（user_social_profiles）
+      profiles = json["user"]["user_social_profiles"]
+      expect(profiles.size).to eq(3)
+      expect(profiles).to include(
+        a_hash_including("provider" => "twitter", "url" => "https://x.com/testuser"),
+        a_hash_including("provider" => "youtube", "url" => "https://youtube.com/testuser"),
+        a_hash_including("provider" => "instagram", "url" => "https://instagram.com/testuser")
+      )
     end
 
     # ユーザーが存在しない場合
@@ -92,6 +106,7 @@ RSpec.describe "Users", type: :request do
       json = JSON.parse(response.body)
       expect(json["user"]["posts"]).to eq([])
       expect(json["user"]["liked_posts"]).to eq([])
+      expect(json["user"]["user_social_profiles"]).to eq([])
     end
 
     it "returns bio as nil if not set" do
