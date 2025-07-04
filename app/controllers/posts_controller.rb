@@ -57,7 +57,7 @@ class PostsController < ApplicationController
   end
 
   def update
-    if @post.nil?
+    unless @post
       render json: { error: "記事が見つかりません" }, status: :not_found
       return
     end
@@ -81,7 +81,7 @@ class PostsController < ApplicationController
   end
 
   def destroy
-    if @post.nil?
+    unless @post
       render json: { error: "記事が見つかりません" }, status: :not_found
       return
     end
