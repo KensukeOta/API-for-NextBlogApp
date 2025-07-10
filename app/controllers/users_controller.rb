@@ -33,7 +33,10 @@ class UsersController < ApplicationController
             user: {
               only: [ :id, :name, :email, :image, :provider ]
             },
-            likes: {}
+            likes: {},
+            tags: {
+              only: [ :id, :name ]
+            }
           }
         ),
         "liked_posts" => liked_posts.as_json(

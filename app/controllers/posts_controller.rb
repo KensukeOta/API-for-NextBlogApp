@@ -25,7 +25,11 @@ class PostsController < ApplicationController
     render json: {
       posts: posts.as_json(
         only: [ :id, :title, :content, :user_id, :created_at, :updated_at ],
-        include: { user: { only: [ :id, :name, :email, :image, :provider ] }, likes: {} }
+        include: {
+          user: { only: [ :id, :name, :email, :image, :provider ] },
+          likes: {},
+          tags: {}
+        }
       ),
       total_count: total_count
     }, status: :ok
@@ -38,7 +42,11 @@ class PostsController < ApplicationController
       render json: {
         post: post.as_json(
           only: [ :id, :title, :content, :user_id, :created_at, :updated_at ],
-          include: { user: { only: [ :id, :name, :email, :image, :provider ] }, likes: {} }
+          include: {
+            user: { only: [ :id, :name, :email, :image, :provider ] },
+            likes: {},
+            tags: { only: [ :id, :name ] }
+          }
         )
       }, status: :ok
     else
@@ -47,10 +55,28 @@ class PostsController < ApplicationController
   end
 
   def create
-    post = current_user.posts.build(post_params)
+    post = current_user.posts.build(post_params.except(:tags))
 
     if post.save
-      render json: { post: post.as_json(only: [ :id, :title, :content, :user_id, :created_at, :updated_at ]) }, status: :created
+      # タグの登録
+      if post_params.key?(:tags)
+        if post_params[:tags].present?
+          tags = post_params[:tags].map { |name| Tag.find_or_create_by!(name: name) }
+          post.tags = tags
+        else
+          post.tags = []
+        end
+      end
+
+      render json: {
+        post: post.as_json(
+          only: [ :id, :title, :content, :user_id, :created_at, :updated_at ],
+          include: {
+            user: { only: [ :id, :name, :email, :image, :provider ] },
+            tags: { only: [ :id, :name ] }
+          }
+        )
+      }, status: :created
     else
       render json: { errors: post.errors.full_messages }, status: :unprocessable_entity
     end
@@ -68,11 +94,25 @@ class PostsController < ApplicationController
       return
     end
 
-    if @post.update(post_params)
+    if @post.update(post_params.except(:tags))
+      # タグが渡っていれば更新する
+      if post_params.key?(:tags)
+        if post_params[:tags].present?
+          tags = post_params[:tags].map { |name| Tag.find_or_create_by!(name: name) }
+          @post.tags = tags
+        else
+          # 空配列ならタグを全解除
+          @post.tags = []
+        end
+      end
+
       render json: {
         post: @post.as_json(
           only: [ :id, :title, :content, :user_id, :created_at, :updated_at ],
-          include: { user: { only: [ :id, :name, :email, :image, :provider ] } }
+          include: {
+            user: { only: [ :id, :name, :email, :image, :provider ] },
+            tags: { only: [ :id, :name ] }
+          }
         )
       }, status: :ok
     else
@@ -105,6 +145,6 @@ class PostsController < ApplicationController
     end
 
     def post_params
-      params.expect(post: [ :title, :content ])
+      params.expect(post: [ :title, :content, tags: [] ])
     end
 end

@@ -215,7 +215,7 @@ RSpec.describe "Posts", type: :request do
     # --------------------------------------------------------
 
     # 正常系
-    # 記事が作成できる
+    # タグ無しで記事が作成できる
     it "creates a post with valid params and returns 201" do
       expect {
         post "/v1/posts", params: valid_attributes, headers: auth_headers(user)
@@ -225,7 +225,30 @@ RSpec.describe "Posts", type: :request do
       json = JSON.parse(response.body)
       expect(json["post"]["title"]).to eq("RSpec Sample Post")
       expect(json["post"]["user_id"]).to eq(user.id)
+      expect(json["post"]["tags"]).to eq([]) # タグは空配列
     end
+
+  # 正常系：タグを含む投稿ができる
+  # Should create a post with tags and tags are persisted/returned
+  it "creates a post with tags and returns them in the response" do
+    tag_names = [ "Rails", "RSpec" ]
+    tag_params = {
+      post: {
+        title: "Tagged Post",
+        content: "Content with tags. More than 10 chars.",
+        tags: tag_names
+      }
+    }
+    expect {
+      post "/v1/posts", params: tag_params, headers: auth_headers(user)
+    }.to change(Post, :count).by(1)
+     .and change(Tag, :count).by(2) # 2つの新規タグも作成される
+
+    expect(response).to have_http_status(:created)
+    json = JSON.parse(response.body)
+    expect(json["post"]["title"]).to eq("Tagged Post")
+    expect(json["post"]["tags"].map { |t| t["name"] }).to match_array(tag_names)
+  end
 
     # 異常系
     # 認証ヘッダーがない場合
@@ -266,7 +289,7 @@ RSpec.describe "Posts", type: :request do
       { "X-USER-ID" => u.id.to_s }
     end
 
-    # 正常系: 自分の記事を更新できる
+    # 正常系: 自分の記事のタイトルと本文のみ更新できる
     # 更新後の内容が返却され、200となることを検証
     it "updates the post and returns the updated post if current_user is the owner" do
       patch "/v1/posts/#{post_record.id}",
@@ -278,6 +301,40 @@ RSpec.describe "Posts", type: :request do
       expect(json["post"]["title"]).to eq("New Title")
       expect(json["post"]["content"]).to eq("Updated Content")
       expect(json["post"]["user"]["id"]).to eq(user.id)
+    end
+
+    # 正常系: タグを追加できる
+    it "adds tags to the post if tags param is present" do
+      tag_names = [ "React", "Ruby" ]
+      patch "/v1/posts/#{post_record.id}",
+        params: { post: { title: "New Title", content: "Updated Content", tags: tag_names } },
+        headers: auth_headers(user),
+        as: :json
+
+      expect(response).to have_http_status(:ok)
+      json = JSON.parse(response.body)
+      # 追加したタグが返ってくること
+      expect(json["post"]["tags"].map { |t| t["name"] }).to match_array(tag_names)
+      # DB上も反映されていること
+      expect(post_record.reload.tags.pluck(:name)).to match_array(tag_names)
+    end
+
+    # 正常系: 空配列で全タグ解除できる
+    it "removes all tags if tags param is empty array" do
+      tag1 = Tag.create!(name: "Tag1")
+      tag2 = Tag.create!(name: "Tag2")
+      post_record.tags << [ tag1, tag2 ]
+      expect(post_record.tags.count).to eq(2)
+
+      patch "/v1/posts/#{post_record.id}",
+        params: { post: { title: "New Title", content: "Updated Content", tags: [] } },
+        headers: auth_headers(user),
+        as: :json
+
+      expect(response).to have_http_status(:ok)
+      json = JSON.parse(response.body)
+      expect(json["post"]["tags"]).to eq([])
+      expect(post_record.reload.tags).to eq([])
     end
 
     # 異常系: 記事が存在しない場合
