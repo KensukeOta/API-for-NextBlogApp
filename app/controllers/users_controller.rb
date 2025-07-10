@@ -25,6 +25,9 @@ class UsersController < ApplicationController
             },
             user_social_profiles: {
               only: [ :id, :provider, :url ]
+            },
+            tags: {
+              only: [ :id, :name ]
             }
           }
         ).merge("posts" => posts.as_json(
@@ -97,9 +100,23 @@ class UsersController < ApplicationController
       return render json: { error: "この名前は既に使用されています" }, status: :unprocessable_entity
     end
 
-    if user.update(user_params)
+    if user.update(user_params.except(:tags))
+      # タグが渡っていれば更新する
+      if user_params.key?(:tags)
+        if user_params[:tags].present?
+          tags = user_params[:tags].map { |name| Tag.find_or_create_by!(name: name) }
+          user.tags = tags
+        else
+          # 空配列ならタグを全解除
+          user.tags = []
+        end
+      end
+
       render json: {
-        user: user.as_json(only: [ :id, :name, :email, :provider, :image, :bio ]),
+        user: user.as_json(
+          only: [ :id, :name, :email, :provider, :image, :bio ],
+          include: { tags: { only: [ :id, :name ] } }
+        ),
         message: "ユーザー情報を更新しました"
       }, status: :ok
     else
@@ -127,6 +144,6 @@ class UsersController < ApplicationController
   private
 
     def user_params
-      params.expect(user: [ :name, :email, :provider, :password, :password_confirmation, :image, :bio ])
+      params.expect(user: [ :name, :email, :provider, :password, :password_confirmation, :image, :bio, tags: [] ])
     end
 end

@@ -11,6 +11,23 @@ RSpec.describe "Users", type: :request do
     let!(:post3) { create(:post, user: user, title: "Newest Post", created_at: 1.day.ago) }
     let(:posts) { [ post1, post2, post3 ] }
 
+    # --- ここでタグを用意し、記事に関連付け ---
+    let!(:tag_ruby)   { Tag.create!(name: "Ruby") }
+    let!(:tag_react)  { Tag.create!(name: "React") }
+    let!(:tag_other)  { Tag.create!(name: "Other") }
+    before do
+      post1.tags << tag_ruby
+      post2.tags << [ tag_react, tag_other ]
+      # post3はタグなし
+    end
+
+    # ユーザー用タグを用意し付与
+    let!(:user_tag1) { Tag.create!(name: "TypeScript") }
+    let!(:user_tag2) { Tag.create!(name: "Rails") }
+    before do
+      user.tags << [ user_tag1, user_tag2 ]
+    end
+
     # SNS情報も用意
     let!(:twitter_profile)  { create(:user_social_profile, user: user, provider: "twitter",  url: "https://x.com/testuser") }
     let!(:youtube_profile)  { create(:user_social_profile, user: user, provider: "youtube",  url: "https://youtube.com/testuser") }
@@ -27,7 +44,7 @@ RSpec.describe "Users", type: :request do
     let(:liked_posts) { [ other_post2, other_post1 ] } # 新しい順
 
     # ユーザー情報・記事情報・記事ごとのuser情報・新しい順で返却されることと、いいねした記事がいいねした新しい順に返却されること
-    it "returns user info, posts (newest first), and liked_posts (by liked_at desc)" do
+    it "returns user info, posts (newest first, including tags), user_social_profiles, user tags, and liked_posts (by liked_at desc)" do
       get "/v1/users/#{user.name}"
 
       expect(response).to have_http_status(:ok)
@@ -77,6 +94,27 @@ RSpec.describe "Users", type: :request do
         expect(post_user["name"]).to be_present
       end
 
+      # --- ユーザー自身のtags情報を検証 ---
+      user_tags = json["user"]["tags"]
+      expect(user_tags).to match_array([
+        a_hash_including("name" => "TypeScript"),
+        a_hash_including("name" => "Rails")
+      ])
+
+      # --- 各投稿のtags情報を検証 ---
+      post_jsons = json["user"]["posts"]
+      # post1（最古）にはRubyのみ
+      ruby_post = post_jsons.find { |p| p["title"] == "Oldest Post" }
+      expect(ruby_post["tags"].map { |t| t["name"] }).to match_array([ "Ruby" ])
+
+      # post2にはReact, Other
+      react_post = post_jsons.find { |p| p["title"] == "Middle Post" }
+      expect(react_post["tags"].map { |t| t["name"] }).to match_array([ "React", "Other" ])
+
+      # post3はタグなし
+      newest_post = post_jsons.find { |p| p["title"] == "Newest Post" }
+      expect(newest_post["tags"]).to eq([])
+
       # SNS情報（user_social_profiles）
       profiles = json["user"]["user_social_profiles"]
       expect(profiles.size).to eq(3)
@@ -107,6 +145,7 @@ RSpec.describe "Users", type: :request do
       expect(json["user"]["posts"]).to eq([])
       expect(json["user"]["liked_posts"]).to eq([])
       expect(json["user"]["user_social_profiles"]).to eq([])
+      expect(json["user"]["tags"]).to eq([])
     end
 
     it "returns bio as nil if not set" do
@@ -199,7 +238,45 @@ RSpec.describe "Users", type: :request do
       expect(json["user"]["id"]).to eq(user.id)
       expect(json["user"]["name"]).to eq("new_name")
       expect(json["user"]["bio"]).to eq("new bio")
+      expect(json["user"]["tags"]).to eq([])
       expect(json["message"]).to eq("ユーザー情報を更新しました")
+    end
+
+    # 正常系：タグを新規付与できる
+    it "adds tags to the user if tags param is present" do
+      patch "/v1/users/#{user.id}", params: {
+        user: {
+          name: "tag_user",
+          bio: "has tags",
+          tags: [ "React", "Ruby" ]
+        }
+      }, headers: headers
+
+      expect(response).to have_http_status(:ok)
+      json = JSON.parse(response.body)
+      tag_names = json["user"]["tags"].map { |t| t["name"] }
+      expect(tag_names).to match_array([ "React", "Ruby" ])
+      # DBも反映
+      expect(user.reload.tags.pluck(:name)).to match_array([ "React", "Ruby" ])
+    end
+
+    # 正常系：既存タグが全て外せる
+    it "removes all tags if tags param is empty array" do
+      user.tags << [ Tag.create!(name: "Tag1"), Tag.create!(name: "Tag2") ]
+      expect(user.tags.count).to eq(2)
+
+      patch "/v1/users/#{user.id}", params: {
+        user: {
+          name: "still_user",
+          bio: "removed tags",
+          tags: []
+        }
+      }, headers: headers, as: :json
+
+      expect(response).to have_http_status(:ok)
+      json = JSON.parse(response.body)
+      expect(json["user"]["tags"]).to eq([])
+      expect(user.reload.tags).to eq([])
     end
 
     # 異常系：存在しないユーザーIDを指定した場合
