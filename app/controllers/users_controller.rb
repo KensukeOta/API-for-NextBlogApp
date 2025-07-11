@@ -1,5 +1,6 @@
 class UsersController < ApplicationController
   before_action :find_current_user_by_header, only: [ :update, :destroy ]
+  before_action :set_user, only: [ :update, :destroy ]
 
   def show_by_name
     user = User.includes(:posts, :likes).find_by(name: params[:name])
@@ -84,57 +85,55 @@ class UsersController < ApplicationController
   end
 
   def update
-    user = User.find_by(id: params[:id])
-    unless user
+    unless @user
       return render json: { error: "ユーザーが見つかりません" }, status: :not_found
     end
 
-    unless user.id == current_user.id
+    unless @user.id == current_user.id
       return render json: { error: "権限がありません" }, status: :forbidden
     end
 
     # ユーザー名が変更されていて、かつその名前が他のユーザーで既に使われていた場合
     if user_params[:name].present? &&
-       user_params[:name] != user.name &&
+       user_params[:name] != @user.name &&
        User.exists?(name: user_params[:name])
       return render json: { error: "この名前は既に使用されています" }, status: :unprocessable_entity
     end
 
-    if user.update(user_params.except(:tags))
+    if @user.update(user_params.except(:tags))
       # タグが渡っていれば更新する
       if user_params.key?(:tags)
         if user_params[:tags].present?
           tags = user_params[:tags].map { |name| Tag.find_or_create_by!(name: name) }
-          user.tags = tags
+          @user.tags = tags
         else
           # 空配列ならタグを全解除
-          user.tags = []
+          @user.tags = []
         end
       end
 
       render json: {
-        user: user.as_json(
+        user: @user.as_json(
           only: [ :id, :name, :email, :provider, :image, :bio ],
           include: { tags: { only: [ :id, :name ] } }
         ),
         message: "ユーザー情報を更新しました"
       }, status: :ok
     else
-      render json: { errors: user.errors.full_messages }, status: :unprocessable_entity
+      render json: { errors: @user.errors.full_messages }, status: :unprocessable_entity
     end
   end
 
   def destroy
-    user = User.find_by(id: params[:id])
-    unless user
+    unless @user
       return render json: { error: "ユーザーが見つかりません" }, status: :not_found
     end
 
-    unless user.id == current_user.id
+    unless @user.id == current_user.id
       return render json: { error: "権限がありません" }, status: :forbidden
     end
 
-    if user.destroy
+    if @user.destroy
       render json: { message: "ユーザーを削除しました" }, status: :ok
     else
       render json: { error: "ユーザーの削除に失敗しました" }, status: :unprocessable_entity
@@ -142,6 +141,10 @@ class UsersController < ApplicationController
   end
 
   private
+
+    def set_user
+      @user = User.find_by(id: params[:id])
+    end
 
     def user_params
       params.expect(user: [ :name, :email, :provider, :password, :password_confirmation, :image, :bio, tags: [] ])
