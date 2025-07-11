@@ -57,14 +57,25 @@ RSpec.describe "Posts", type: :request do
     let!(:post2) { create(:post, title: "React入門", user: user2) }
     let!(:post3) { create(:post, title: "JavaScript Tips", user: user2) }
 
+    # --- タグを事前に付与 ---
+    let!(:tag_ruby)  { Tag.create!(name: "Ruby") }
+    let!(:tag_react) { Tag.create!(name: "React") }
+    let!(:tag_js)    { Tag.create!(name: "JavaScript") }
+    before do
+      post1.tags << tag_ruby
+      post2.tags << tag_react
+      post3.tags << [ tag_js, tag_ruby ] # post3に複数タグ
+    end
+
     # タイトルで検索できること
     it "returns posts filtered by title (partial match)" do
       get "/v1/posts", params: { q: "Ruby" }
       expect(response).to have_http_status(:ok)
       json = JSON.parse(response.body)
-      # "Ruby on Rails"のみヒット
-      expect(json["posts"].length).to eq(1)
-      expect(json["posts"].first["title"]).to eq("Ruby on Rails")
+      # "Ruby on Rails"（タイトル）、"JavaScript Tips"（タグ）が両方ヒット
+      expect(json["posts"].length).to eq(2)
+      titles = json["posts"].map { |p| p["title"] }
+      expect(titles).to include("Ruby on Rails", "JavaScript Tips")
     end
 
     # 著者名（user.name）で検索できること
@@ -74,7 +85,37 @@ RSpec.describe "Posts", type: :request do
       json = JSON.parse(response.body)
       # user2の投稿2件がヒット
       expect(json["posts"].length).to eq(2)
-      expect(json["posts"].map { |p| p["user"]["name"] }).to all(include("special author"))
+      expect(json["posts"].map { |p| p["user"]["name"] }).to all(eq("special author"))
+    end
+
+    # タグ名で検索できること
+    it "returns posts filtered by tag name (partial match)" do
+      get "/v1/posts", params: { q: "React" }
+      expect(response).to have_http_status(:ok)
+      json = JSON.parse(response.body)
+      # "React"タグがついたpost2が返ること
+      expect(json["posts"].length).to eq(1)
+      expect(json["posts"].first["title"]).to eq("React入門")
+      # タグ情報が正しく含まれているか
+      expect(json["posts"].first["tags"].map { |t| t["name"] }).to include("React")
+    end
+
+    # 複数タグ付与記事の検証（例：Rubyタグで検索）
+    it "returns posts that have the searched tag (even with multiple tags)" do
+      get "/v1/posts", params: { q: "Ruby" }
+      expect(response).to have_http_status(:ok)
+      json = JSON.parse(response.body)
+      # post1, post3両方がヒット
+      titles = json["posts"].map { |p| p["title"] }
+      expect(titles).to include("Ruby on Rails", "JavaScript Tips")
+      # それぞれのtagsにRubyが含まれること（検索結果のtagsは全て返ること）
+      json["posts"].each do |p|
+        if p["title"] == "Ruby on Rails"
+          expect(p["tags"].map { |t| t["name"] }).to include("Ruby")
+        elsif p["title"] == "JavaScript Tips"
+          expect(p["tags"].map { |t| t["name"] }).to include("Ruby", "JavaScript")
+        end
+      end
     end
 
     # 大文字小文字を区別しない（PostgreSQLのILIKE）

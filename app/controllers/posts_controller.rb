@@ -10,12 +10,18 @@ class PostsController < ApplicationController
     # 1ページあたり件数（なければ10）
     per_page = params[:per].to_i > 0 ? params[:per].to_i : 10
 
-    posts = Post.includes(:user, :likes)
     if query.present?
-      # タイトルまたは著者名（user.name）で部分一致検索
-      posts = posts.references(:user).where(
-        "posts.title ILIKE :q OR users.name ILIKE :q", q: "%#{query}%"
-      )
+      # タイトル・ユーザー名・タグ名で部分一致検索
+      # クエリにマッチする記事IDだけ取得
+      post_ids = Post.joins(:user)
+                     .left_joins(:tags)
+                     .where("posts.title ILIKE :q OR users.name ILIKE :q OR tags.name ILIKE :q", q: "%#{query}%")
+                     .distinct
+                     .pluck(:id)
+
+      posts = Post.includes(:user, :likes, :tags).where(id: post_ids)
+    else
+      posts = Post.includes(:user, :likes, :tags)
     end
 
     total_count = posts.count
@@ -28,7 +34,7 @@ class PostsController < ApplicationController
         include: {
           user: { only: [ :id, :name, :email, :image, :provider ] },
           likes: {},
-          tags: {}
+          tags: { only: [ :id, :name ] }
         }
       ),
       total_count: total_count
