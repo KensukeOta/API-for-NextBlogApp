@@ -3,22 +3,14 @@ class ApplicationController < ActionController::API
 
   private
 
-    def find_current_user_by_header
-      user_id = request.headers["X-USER-ID"]
-      Rails.logger.debug "X-USER-ID header: #{user_id.inspect}"
-      if user_id.present?
-        user = User.find_by(id: user_id)
-        if user
-          @current_user = user
-        else
-          render_unauthorized
-        end
+    def authorize_request
+      header = request.headers["Authorization"]
+      header = header.split(" ").last if header.present?
+      decoded = JsonWebToken.decode(header)
+      if decoded && (user = User.find_by(id: decoded[:user_id]))
+        @current_user = user
       else
-        render_unauthorized
+        render json: { error: "認証が必要です" }, status: :unauthorized
       end
-    end
-
-    def render_unauthorized
-      render json: { error: "認証が必要です" }, status: :unauthorized
     end
 end

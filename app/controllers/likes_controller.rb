@@ -1,5 +1,5 @@
 class LikesController < ApplicationController
-  before_action :find_current_user_by_header
+  before_action :authorize_request
 
   def create
     post = Post.find_by(id: like_params[:post_id])

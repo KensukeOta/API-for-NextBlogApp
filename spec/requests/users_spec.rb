@@ -1,6 +1,12 @@
 require 'rails_helper'
 
 RSpec.describe "Users", type: :request do
+  # JWTヘッダー発行ヘルパー
+  def jwt_auth_headers(user)
+    token = JsonWebToken.encode(user_id: user.id)
+    { "Authorization" => "Bearer #{token}" }
+  end
+
   describe "GET /v1/users/:name (show_by_name)" do
     let(:user) { create(:user, name: "showtestuser", bio: "自己紹介テストです。") }
 
@@ -219,7 +225,6 @@ RSpec.describe "Users", type: :request do
 
   describe "PATCH /v1/users/:id" do
     let!(:user) { create(:user, name: "original_name", email: "user@example.com", bio: "old bio") }
-    let(:headers) { { "X-USER-ID" => user.id } }
 
     # 他のユーザー（権限チェックや重複名チェック用）
     let!(:other_user) { create(:user, name: "taken_name") }
@@ -231,7 +236,7 @@ RSpec.describe "Users", type: :request do
           name: "new_name",
           bio: "new bio"
         }
-      }, headers: headers
+      }, headers: jwt_auth_headers(user)
 
       expect(response).to have_http_status(:ok)
       json = JSON.parse(response.body)
@@ -250,7 +255,7 @@ RSpec.describe "Users", type: :request do
           bio: "has tags",
           tags: [ "React", "Ruby" ]
         }
-      }, headers: headers
+      }, headers: jwt_auth_headers(user)
 
       expect(response).to have_http_status(:ok)
       json = JSON.parse(response.body)
@@ -271,7 +276,7 @@ RSpec.describe "Users", type: :request do
           bio: "removed tags",
           tags: []
         }
-      }, headers: headers, as: :json
+      }, headers: jwt_auth_headers(user), as: :json
 
       expect(response).to have_http_status(:ok)
       json = JSON.parse(response.body)
@@ -283,7 +288,7 @@ RSpec.describe "Users", type: :request do
     it "returns 404 if user does not exist" do
       patch "/v1/users/00000000-0000-0000-0000-000000000000", params: {
         user: { name: "any", bio: "any" }
-      }, headers: headers
+      }, headers: jwt_auth_headers(user)
 
       expect(response).to have_http_status(:not_found)
       json = JSON.parse(response.body)
@@ -294,7 +299,7 @@ RSpec.describe "Users", type: :request do
     it "returns forbidden if trying to update another user" do
       patch "/v1/users/#{other_user.id}", params: {
         user: { name: "changed", bio: "changed" }
-      }, headers: headers
+      }, headers: jwt_auth_headers(user)
 
       expect(response).to have_http_status(:forbidden)
       json = JSON.parse(response.body)
@@ -305,7 +310,7 @@ RSpec.describe "Users", type: :request do
     it "returns error if name is already taken by another user" do
       patch "/v1/users/#{user.id}", params: {
         user: { name: "taken_name", bio: "any" }
-      }, headers: headers
+      }, headers: jwt_auth_headers(user)
 
       expect(response).to have_http_status(:unprocessable_entity)
       json = JSON.parse(response.body)
@@ -316,7 +321,7 @@ RSpec.describe "Users", type: :request do
     it "returns validation errors if params are invalid" do
       patch "/v1/users/#{user.id}", params: {
         user: { name: "a", bio: "b" }
-      }, headers: headers
+      }, headers: jwt_auth_headers(user)
 
       expect(response).to have_http_status(:unprocessable_entity)
       json = JSON.parse(response.body)
@@ -334,12 +339,21 @@ RSpec.describe "Users", type: :request do
       json = JSON.parse(response.body)
       expect(json["error"]).to eq("認証が必要です")
     end
+
+    # 無効なトークンのテスト
+    it "returns unauthorized if token is invalid" do
+      patch "/v1/users/#{user.id}", params: {
+        user: { name: "hacker", bio: "hacker" }
+      }, headers: { "Authorization" => "Bearer invalidtoken" }
+      expect(response).to have_http_status(:unauthorized)
+      json = JSON.parse(response.body)
+      expect(json["error"]).to eq("認証が必要です")
+    end
   end
 
   describe "DELETE /v1/users/:id" do
     # テストユーザー・ヘッダー
     let!(:user) { create(:user, name: "delete_user") }
-    let(:headers) { { "X-USER-ID" => user.id } }
 
     # 他のユーザー（権限確認用）
     let!(:other_user) { create(:user, name: "otheruser") }
@@ -347,7 +361,7 @@ RSpec.describe "Users", type: :request do
     # 正常系：自分のユーザーを削除できる
     it "deletes own user successfully" do
       expect {
-        delete "/v1/users/#{user.id}", headers: headers
+        delete "/v1/users/#{user.id}", headers: jwt_auth_headers(user)
       }.to change(User, :count).by(-1)
 
       expect(response).to have_http_status(:ok)
@@ -358,7 +372,7 @@ RSpec.describe "Users", type: :request do
     # 異常系：存在しないユーザーIDを指定した場合
     it "returns 404 if user does not exist" do
       expect {
-        delete "/v1/users/00000000-0000-0000-0000-000000000000", headers: headers
+        delete "/v1/users/00000000-0000-0000-0000-000000000000", headers: jwt_auth_headers(user)
       }.not_to change(User, :count)
 
       expect(response).to have_http_status(:not_found)
@@ -369,7 +383,7 @@ RSpec.describe "Users", type: :request do
     # 異常系：他人のユーザーを削除しようとした場合
     it "returns forbidden if trying to delete another user" do
       expect {
-        delete "/v1/users/#{other_user.id}", headers: headers
+        delete "/v1/users/#{other_user.id}", headers: jwt_auth_headers(user)
       }.not_to change(User, :count)
 
       expect(response).to have_http_status(:forbidden)
@@ -380,6 +394,14 @@ RSpec.describe "Users", type: :request do
     # 異常系：認証ヘッダーがない場合
     it "returns unauthorized if header is missing" do
       delete "/v1/users/#{user.id}"
+      expect(response).to have_http_status(:unauthorized)
+      json = JSON.parse(response.body)
+      expect(json["error"]).to eq("認証が必要です")
+    end
+
+    # 無効なトークンのテスト
+    it "returns unauthorized if token is invalid" do
+      delete "/v1/users/#{user.id}", headers: { "Authorization" => "Bearer invalidtoken" }
       expect(response).to have_http_status(:unauthorized)
       json = JSON.parse(response.body)
       expect(json["error"]).to eq("認証が必要です")

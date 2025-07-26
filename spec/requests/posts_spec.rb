@@ -1,6 +1,12 @@
 require 'rails_helper'
 
 RSpec.describe "Posts", type: :request do
+  # JWTヘッダー発行ヘルパー
+  def jwt_auth_headers(user)
+    token = JsonWebToken.encode(user_id: user.id)
+    { "Authorization" => "Bearer #{token}" }
+  end
+
   describe "GET /v1/posts" do
     let!(:user1) { create(:user, name: "user1", email: "user1@example.com") }
     let!(:user2) { create(:user, name: "user2", email: "user2@example.com") }
@@ -246,11 +252,6 @@ RSpec.describe "Posts", type: :request do
       }
     }
 
-    # X-USER-IDヘッダーを付与するリクエスト用ヘルパー
-    def auth_headers(user)
-      { "X-USER-ID" => user.id.to_s }
-    end
-
     # --------------------------------------------------------
     # テストケース
     # --------------------------------------------------------
@@ -259,7 +260,7 @@ RSpec.describe "Posts", type: :request do
     # タグ無しで記事が作成できる
     it "creates a post with valid params and returns 201" do
       expect {
-        post "/v1/posts", params: valid_attributes, headers: auth_headers(user)
+        post "/v1/posts", params: valid_attributes, headers: jwt_auth_headers(user)
       }.to change(Post, :count).by(1)
 
       expect(response).to have_http_status(:created)
@@ -281,7 +282,7 @@ RSpec.describe "Posts", type: :request do
       }
     }
     expect {
-      post "/v1/posts", params: tag_params, headers: auth_headers(user)
+      post "/v1/posts", params: tag_params, headers: jwt_auth_headers(user)
     }.to change(Post, :count).by(1)
      .and change(Tag, :count).by(2) # 2つの新規タグも作成される
 
@@ -303,7 +304,7 @@ RSpec.describe "Posts", type: :request do
     # 異常系
     # バリデーションエラーの場合
     it "returns 422 and error messages if params are invalid" do
-      post "/v1/posts", params: invalid_attributes, headers: auth_headers(user)
+      post "/v1/posts", params: invalid_attributes, headers: jwt_auth_headers(user)
       expect(response).to have_http_status(:unprocessable_entity)
       json = JSON.parse(response.body)
       expect(json["errors"]).to include("Title is too short (minimum is 3 characters)")
@@ -311,9 +312,9 @@ RSpec.describe "Posts", type: :request do
     end
 
     # 異常系
-    # 存在しないユーザーID
-    it "returns 401 if X-USER-ID is invalid" do
-      post "/v1/posts", params: valid_attributes, headers: { "X-USER-ID" => "999999" }
+    # 無効なトークンのテスト
+    it "returns 401 if token is invalid" do
+      post "/v1/posts", params: valid_attributes, headers: { "Authorization" => "Bearer invalidtoken" }
       expect(response).to have_http_status(:unauthorized)
       json = JSON.parse(response.body)
       expect(json["error"]).to eq("認証が必要です")
@@ -325,17 +326,12 @@ RSpec.describe "Posts", type: :request do
     let!(:other) { create(:user) }
     let!(:post_record) { create(:post, user: user, title: "Old Title", content: "Old Content") }
 
-    # 認証ヘッダーを付与するヘルパー
-    def auth_headers(u)
-      { "X-USER-ID" => u.id.to_s }
-    end
-
     # 正常系: 自分の記事のタイトルと本文のみ更新できる
     # 更新後の内容が返却され、200となることを検証
     it "updates the post and returns the updated post if current_user is the owner" do
       patch "/v1/posts/#{post_record.id}",
         params: { post: { title: "New Title", content: "Updated Content" } },
-        headers: auth_headers(user)
+        headers: jwt_auth_headers(user)
 
       expect(response).to have_http_status(:ok)
       json = JSON.parse(response.body)
@@ -349,7 +345,7 @@ RSpec.describe "Posts", type: :request do
       tag_names = [ "React", "Ruby" ]
       patch "/v1/posts/#{post_record.id}",
         params: { post: { title: "New Title", content: "Updated Content", tags: tag_names } },
-        headers: auth_headers(user),
+        headers: jwt_auth_headers(user),
         as: :json
 
       expect(response).to have_http_status(:ok)
@@ -369,7 +365,7 @@ RSpec.describe "Posts", type: :request do
 
       patch "/v1/posts/#{post_record.id}",
         params: { post: { title: "New Title", content: "Updated Content", tags: [] } },
-        headers: auth_headers(user),
+        headers: jwt_auth_headers(user),
         as: :json
 
       expect(response).to have_http_status(:ok)
@@ -383,7 +379,7 @@ RSpec.describe "Posts", type: :request do
     it "returns 404 if post does not exist" do
       patch "/v1/posts/999999",
         params: { post: { title: "Doesn't matter", content: "..." } },
-        headers: auth_headers(user)
+        headers: jwt_auth_headers(user)
 
       expect(response).to have_http_status(:not_found)
       json = JSON.parse(response.body)
@@ -395,7 +391,7 @@ RSpec.describe "Posts", type: :request do
     it "returns 403 if current_user is not the owner" do
       patch "/v1/posts/#{post_record.id}",
         params: { post: { title: "Hacked Title", content: "..." } },
-        headers: auth_headers(other)
+        headers: jwt_auth_headers(other)
 
       expect(response).to have_http_status(:forbidden)
       json = JSON.parse(response.body)
@@ -407,7 +403,7 @@ RSpec.describe "Posts", type: :request do
     it "returns 422 if params are invalid" do
       patch "/v1/posts/#{post_record.id}",
         params: { post: { title: "", content: "short" } },
-        headers: auth_headers(user)
+        headers: jwt_auth_headers(user)
 
       expect(response).to have_http_status(:unprocessable_entity)
       json = JSON.parse(response.body)
@@ -421,15 +417,10 @@ RSpec.describe "Posts", type: :request do
     let!(:other_user) { create(:user) }
     let!(:post_record) { create(:post, user: user) }
 
-    # 認証ヘッダーを付与するヘルパー
-    def auth_headers(u)
-      { "X-USER-ID" => u.id.to_s }
-    end
-
     # 正常系: 投稿者自身なら削除できる
     it "deletes the post if current_user is the owner" do
       expect {
-        delete "/v1/posts/#{post_record.id}", headers: auth_headers(user)
+        delete "/v1/posts/#{post_record.id}", headers: jwt_auth_headers(user)
       }.to change(Post, :count).by(-1)
 
       expect(response).to have_http_status(:ok)
@@ -440,7 +431,7 @@ RSpec.describe "Posts", type: :request do
     # 異常系: 存在しない記事ID
     it "returns 404 if the post does not exist" do
       expect {
-        delete "/v1/posts/999999", headers: auth_headers(user)
+        delete "/v1/posts/999999", headers: jwt_auth_headers(user)
       }.not_to change(Post, :count)
 
       expect(response).to have_http_status(:not_found)
@@ -451,7 +442,7 @@ RSpec.describe "Posts", type: :request do
     # 異常系: 他人の記事を削除しようとした場合
     it "returns 403 if current_user is not the owner" do
       expect {
-        delete "/v1/posts/#{post_record.id}", headers: auth_headers(other_user)
+        delete "/v1/posts/#{post_record.id}", headers: jwt_auth_headers(other_user)
       }.not_to change(Post, :count)
 
       expect(response).to have_http_status(:forbidden)

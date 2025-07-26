@@ -1,5 +1,5 @@
 class UserSocialProfilesController < ApplicationController
-  before_action :find_current_user_by_header
+  before_action :authorize_request
   before_action :set_profile, only: [ :update, :destroy ]
 
   # SNSアカウント新規追加

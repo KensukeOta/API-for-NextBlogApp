@@ -2,7 +2,10 @@ class SessionsController < ApplicationController
   def create
     user = User.find_by(email: login_params[:email], provider: login_params[:provider])
     if user && user.authenticate(login_params[:password])
-      render json: { user: user.as_json(only: [ :id, :name, :email, :provider, :image ]) }, status: :ok
+      token = JsonWebToken.encode(user_id: user.id)
+      render json: {
+        user: user.as_json(only: [ :id, :name, :email, :provider, :image ]).merge(accessToken: token)
+      }, status: :ok
     else
       render json: { error: "ログインに失敗しました" }, status: :unauthorized
     end

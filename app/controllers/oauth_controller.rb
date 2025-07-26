@@ -5,8 +5,9 @@ class OauthController < ApplicationController
 
     # 既存ユーザーが見つかった場合、ユーザーを返す
     if user
+      token = JsonWebToken.encode(user_id: user.id)
       render json: {
-        user: user.as_json(only: [ :id, :name, :email, :provider, :image ])
+        user: user.as_json(only: [ :id, :name, :email, :provider, :image ]).merge(accessToken: token)
       }, status: :ok
       return
     end
@@ -32,8 +33,9 @@ class OauthController < ApplicationController
     user.password_confirmation = user.password
 
     if user.save
+      token = JsonWebToken.encode(user_id: user.id)
       render json: {
-        user: user.as_json(only: [ :id, :name, :email, :provider, :image ])
+        user: user.as_json(only: [ :id, :name, :email, :provider, :image ]).merge(accessToken: token)
       }, status: :created
     else
       render json: { error: user.errors.full_messages }, status: :unprocessable_entity

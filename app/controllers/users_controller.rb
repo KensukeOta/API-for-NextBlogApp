@@ -1,5 +1,5 @@
 class UsersController < ApplicationController
-  before_action :find_current_user_by_header, only: [ :update, :destroy ]
+  before_action :authorize_request, only: [ :update, :destroy ]
   before_action :set_user, only: [ :update, :destroy ]
 
   def show_by_name
