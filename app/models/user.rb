@@ -10,6 +10,9 @@ class User < ApplicationRecord
   has_many :user_tags, dependent: :destroy
   has_many :tags, through: :user_tags
 
+  has_many :sent_messages, class_name: "Message", foreign_key: "from_user_id", dependent: :destroy
+  has_many :received_messages, class_name: "Message", foreign_key: "to_user_id", dependent: :destroy
+
   validates :name, presence: true, uniqueness: true, length: { minimum: 3, maximum: 32 }
   validates :email, presence: true, uniqueness: { scope: :provider }, length: { maximum: 255 }, format: { with: URI::MailTo::EMAIL_REGEXP }
   validates :provider, presence: true
