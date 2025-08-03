@@ -15,5 +15,10 @@ Rails.application.routes.draw do
     resources :oauth,                only: [ :create ]
     resources :posts
     resources :likes,                only: [ :create, :destroy ]
+    resources :messages, only: [ :index, :create ] do
+      member do
+        patch :read # /v1/messages/:id/read
+      end
+    end
   end
 end
