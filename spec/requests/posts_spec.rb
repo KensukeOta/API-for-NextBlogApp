@@ -141,6 +141,16 @@ RSpec.describe "Posts", type: :request do
       json = JSON.parse(response.body)
       expect(json["posts"]).to eq([])
     end
+
+    # 前後の空白を無視して検索できること
+    it "ignores leading and trailing spaces in search query" do
+      get "/v1/posts", params: { q: "  Ruby  " }
+      expect(response).to have_http_status(:ok)
+      json = JSON.parse(response.body)
+      expect(json["posts"].length).to eq(2)
+      titles = json["posts"].map { |p| p["title"] }
+      expect(titles).to include("Ruby on Rails", "JavaScript Tips")
+    end
   end
 
   describe "GET /v1/posts with pagination" do

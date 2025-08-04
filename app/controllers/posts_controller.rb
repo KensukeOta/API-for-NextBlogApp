@@ -4,7 +4,7 @@ class PostsController < ApplicationController
 
   def index
     # クエリパラメータ q 取得（例: /v1/posts?q=テスト）
-    query = params[:q]
+    query = params[:q]&.strip
     # ページ番号（1始まり。なければ1）
     page = params[:page].to_i > 0 ? params[:page].to_i : 1
     # 1ページあたり件数（なければ10）
