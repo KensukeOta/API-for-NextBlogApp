@@ -23,5 +23,6 @@ Rails.application.routes.draw do
     resources :follows, only: [ :create, :destroy ]
     get "users/:id/followers", to: "follows#followers"
     get "users/:id/following", to: "follows#following"
+    get "timeline", to: "timeline#index"
   end
 end
