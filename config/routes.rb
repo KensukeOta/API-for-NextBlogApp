@@ -20,5 +20,8 @@ Rails.application.routes.draw do
         patch :read # /v1/messages/:id/read
       end
     end
+    resources :follows, only: [ :create, :destroy ]
+    get "users/:id/followers", to: "follows#followers"
+    get "users/:id/following", to: "follows#following"
   end
 end
