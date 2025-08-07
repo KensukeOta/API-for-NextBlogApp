@@ -12,6 +12,30 @@ class UsersController < ApplicationController
                         .select("posts.*, likes.created_at as liked_at")
                         .order("likes.created_at DESC")
 
+      followers = user.follower_relationships
+                      .includes(:follower)
+                      .order(created_at: :desc)
+                      .map do |rel|
+        {
+          id: rel.follower.id,
+          name: rel.follower.name,
+          image: rel.follower.image,
+          follow_id: rel.id
+        }
+      end
+
+      following = user.following_relationships
+                      .includes(:followed)
+                      .order(created_at: :desc)
+                      .map do |rel|
+        {
+          id: rel.followed.id,
+          name: rel.followed.name,
+          image: rel.followed.image,
+          follow_id: rel.id
+        }
+      end
+
       render json: {
         user: user.as_json(
           only: [ :id, :name, :email, :image, :provider, :bio ],
@@ -50,9 +74,14 @@ class UsersController < ApplicationController
               user: {
                 only: [ :id, :name, :email, :image, :provider ]
               },
-              likes: {}
+              likes: {},
+              tags: {
+                only: [ :id, :name ]
+              }
             }
-          )
+        ),
+        "followers" => followers,
+        "following" => following
         )
       }, status: :ok
     else
