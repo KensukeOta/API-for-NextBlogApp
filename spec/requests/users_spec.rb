@@ -49,8 +49,19 @@ RSpec.describe "Users", type: :request do
     let!(:like2) { create(:like, user: user, post: other_post2, created_at: 1.hour.ago) }
     let(:liked_posts) { [ other_post2, other_post1 ] } # 新しい順
 
-    # ユーザー情報・記事情報・記事ごとのuser情報・新しい順で返却されることと、いいねした記事がいいねした新しい順に返却されること
-    it "returns user info, posts (newest first, including tags), user_social_profiles, user tags, and liked_posts (by liked_at desc)" do
+    # --- フォロー/フォロワー関連 ---
+    let!(:follower1) { create(:user, name: "follower1") }
+    let!(:follower2) { create(:user, name: "follower2") }
+    let!(:follower_rel1) { create(:follow, follower: follower1, followed: user, created_at: 3.hours.ago) }
+    let!(:follower_rel2) { create(:follow, follower: follower2, followed: user, created_at: 1.hour.ago) }
+
+    let!(:following1) { create(:user, name: "following1") }
+    let!(:following2) { create(:user, name: "following2") }
+    let!(:following_rel1) { create(:follow, follower: user, followed: following1, created_at: 2.hours.ago) }
+    let!(:following_rel2) { create(:follow, follower: user, followed: following2, created_at: 4.hours.ago) }
+
+    # ユーザー情報・記事情報・記事ごとのuser情報・新しい順で返却されることと、いいねした記事がいいねした新しい順に返却されることと、フォローしているユーザーとフォロワーが新しい順に返却されること
+    it "returns user info, posts (newest first, including tags), user_social_profiles, user tags, liked_posts (by liked_at desc), followers, and following (newest first), with follow_id" do
       get "/v1/users/#{user.name}"
 
       expect(response).to have_http_status(:ok)
@@ -129,6 +140,31 @@ RSpec.describe "Users", type: :request do
         a_hash_including("provider" => "youtube", "url" => "https://youtube.com/testuser"),
         a_hash_including("provider" => "instagram", "url" => "https://instagram.com/testuser")
       )
+
+    # --- followers: 新しい順(created_at desc) ---
+    follower_names = json["user"]["followers"].map { |f| f["name"] }
+    expect(follower_names).to eq([ "follower2", "follower1" ])
+    # follow_idも含まれる
+    expect(json["user"]["followers"].all? { |f| f["follow_id"].present? }).to be true
+
+    # id,name,imageが正しく含まれる
+    expect(json["user"]["followers"].first).to include(
+      "id" => follower2.id,
+      "name" => "follower2",
+      "image" => follower2.image,
+      "follow_id" => follower_rel2.id
+    )
+
+    # --- following: 新しい順(created_at desc) ---
+    following_names = json["user"]["following"].map { |f| f["name"] }
+    expect(following_names).to eq([ "following1", "following2" ])
+    expect(json["user"]["following"].all? { |f| f["follow_id"].present? }).to be true
+    expect(json["user"]["following"].first).to include(
+      "id" => following1.id,
+      "name" => "following1",
+      "image" => following1.image,
+      "follow_id" => following_rel1.id
+    )
     end
 
     # ユーザーが存在しない場合
