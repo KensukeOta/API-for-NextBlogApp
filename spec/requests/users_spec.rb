@@ -7,6 +7,15 @@ RSpec.describe "Users", type: :request do
     { "Authorization" => "Bearer #{token}" }
   end
 
+  # 任意サイズ・任意MIMEのアップロードファイルを生成
+  def build_uploaded_file(bytes:, content_type:, filename:)
+    tmp = Tempfile.new([ "upload", File.extname(filename) ])
+    tmp.binmode
+    tmp.write("a" * bytes)
+    tmp.rewind
+    Rack::Test::UploadedFile.new(tmp.path, content_type, original_filename: filename)
+  end
+
   describe "GET /v1/users/:name (show_by_name)" do
     let(:user) { create(:user, name: "showtestuser", bio: "自己紹介テストです。") }
 
@@ -441,6 +450,138 @@ RSpec.describe "Users", type: :request do
       expect(response).to have_http_status(:unauthorized)
       json = JSON.parse(response.body)
       expect(json["error"]).to eq("認証が必要です")
+    end
+  end
+
+  describe "POST /v1/users/:id/image" do
+    let!(:user) { create(:user, name: "uploader") }
+    let!(:other_user) { create(:user, name: "other") }
+
+    # アップローダをスタブ（成功時のURLを固定）
+    let(:stubbed_url) { "http://localhost:9000/user-avatars/users/#{user.id}/avatar.png" }
+
+    before do
+      allow(ImageUploader).to receive(:upload_user_avatar!).and_return(stubbed_url)
+    end
+
+    # 正常系：画像を2MB以下・許可された形式でアップロードできる
+    it "returns 200 and updates user's image with returned URL" do
+      file = build_uploaded_file(bytes: 256.kilobytes, content_type: "image/png", filename: "avatar.png")
+
+      post "/v1/users/#{user.id}/image",
+           params: { image: file },
+           headers: jwt_auth_headers(user),
+           as: :multipart
+
+      expect(response).to have_http_status(:ok)
+      json = JSON.parse(response.body)
+      expect(json["message"]).to eq("ユーザー画像を更新しました")
+      expect(json["user"]["image"]).to eq(stubbed_url)
+      expect(user.reload.image).to eq(stubbed_url)
+      expect(ImageUploader).to have_received(:upload_user_avatar!).with(user_id: user.id, file: instance_of(ActionDispatch::Http::UploadedFile))
+    end
+
+    # 異常系：画像未指定
+    it "returns 422 when image is not provided" do
+      post "/v1/users/#{user.id}/image",
+           params: {},
+           headers: jwt_auth_headers(user),
+           as: :multipart
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      json = JSON.parse(response.body)
+      expect(json["error"]).to eq("画像ファイルが未指定です")
+      expect(ImageUploader).not_to have_received(:upload_user_avatar!)
+    end
+
+    # 異常系：2MB超過でエラー
+    it "returns 422 when file size exceeds 2MB" do
+      big = 2.megabytes + 1
+      file = build_uploaded_file(bytes: big, content_type: "image/jpeg", filename: "big.jpg")
+
+      post "/v1/users/#{user.id}/image",
+           params: { image: file },
+           headers: jwt_auth_headers(user),
+           as: :multipart
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      json = JSON.parse(response.body)
+      expect(json["error"]).to eq("画像サイズは2MB以内にしてください")
+      expect(ImageUploader).not_to have_received(:upload_user_avatar!)
+    end
+
+    # 異常系：未許可MIMEタイプ
+    it "returns 422 when content type is not allowed" do
+      file = build_uploaded_file(bytes: 10.kilobytes, content_type: "text/plain", filename: "note.txt")
+
+      post "/v1/users/#{user.id}/image",
+           params: { image: file },
+           headers: jwt_auth_headers(user),
+           as: :multipart
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      json = JSON.parse(response.body)
+      expect(json["error"]).to eq("対応していない画像形式です")
+      expect(ImageUploader).not_to have_received(:upload_user_avatar!)
+    end
+
+    # 異常系：他人の画像を更新しようとして403
+    it "returns 403 when uploading image for another user" do
+      file = build_uploaded_file(bytes: 50.kilobytes, content_type: "image/png", filename: "a.png")
+
+      post "/v1/users/#{other_user.id}/image",
+           params: { image: file },
+           headers: jwt_auth_headers(user),
+           as: :multipart
+
+      expect(response).to have_http_status(:forbidden)
+      json = JSON.parse(response.body)
+      expect(json["error"]).to eq("権限がありません")
+      expect(ImageUploader).not_to have_received(:upload_user_avatar!)
+    end
+
+    # 異常系：ユーザー未存在で404
+    it "returns 404 when user not found" do
+      file = build_uploaded_file(bytes: 50.kilobytes, content_type: "image/png", filename: "a.png")
+
+      post "/v1/users/00000000-0000-0000-0000-000000000000/image",
+           params: { image: file },
+           headers: jwt_auth_headers(user),
+           as: :multipart
+
+      expect(response).to have_http_status(:not_found)
+      json = JSON.parse(response.body)
+      expect(json["error"]).to eq("ユーザーが見つかりません")
+      expect(ImageUploader).not_to have_received(:upload_user_avatar!)
+    end
+
+    # 異常系：認証ヘッダーなしで401
+    it "returns 401 when Authorization header is missing" do
+      file = build_uploaded_file(bytes: 50.kilobytes, content_type: "image/png", filename: "a.png")
+
+      post "/v1/users/#{user.id}/image",
+           params: { image: file },
+           as: :multipart
+
+      expect(response).to have_http_status(:unauthorized)
+      json = JSON.parse(response.body)
+      expect(json["error"]).to eq("認証が必要です")
+      expect(ImageUploader).not_to have_received(:upload_user_avatar!)
+    end
+
+    # 異常系：トークン不正で401
+    it "returns 401 when token is invalid" do
+      file = build_uploaded_file(bytes: 50.kilobytes, content_type: "image/png", filename: "a.png")
+
+      post "/v1/users/#{user.id}/image",
+           params: { image: file },
+           headers: { "Authorization" => "Bearer invalidtoken" },
+           as: :multipart
+
+      expect(response).to have_http_status(:unauthorized)
+      json = JSON.parse(response.body)
+      expect(json["error"]).to eq("認証が必要です")
+      expect(ImageUploader).not_to have_received(:upload_user_avatar!)
     end
   end
 end

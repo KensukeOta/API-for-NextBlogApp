@@ -1,6 +1,6 @@
 class UsersController < ApplicationController
-  before_action :authorize_request, only: [ :update, :destroy ]
-  before_action :set_user, only: [ :update, :destroy ]
+  before_action :authorize_request, only: [ :update, :destroy, :image ]
+  before_action :set_user, only: [ :update, :destroy, :image ]
 
   def show_by_name
     user = User.includes(:posts, :likes).find_by(name: params[:name])
@@ -166,6 +166,43 @@ class UsersController < ApplicationController
       render json: { message: "ユーザーを削除しました" }, status: :ok
     else
       render json: { error: "ユーザーの削除に失敗しました" }, status: :unprocessable_entity
+    end
+  end
+
+  def image
+    unless @user
+      return render json: { error: "ユーザーが見つかりません" }, status: :not_found
+    end
+
+    unless @user.id == current_user.id
+      return render json: { error: "権限がありません" }, status: :forbidden
+    end
+
+    file = params[:image]
+    unless file&.respond_to?(:original_filename)
+      return render json: { error: "画像ファイルが未指定です" }, status: :unprocessable_entity
+    end
+
+    max_size = 2.megabytes
+    if file.size > max_size
+      return render json: { error: "画像サイズは2MB以内にしてください" }, status: :unprocessable_entity
+    end
+
+    # （任意）基本的なバリデーション例
+    allowed = %w[image/jpeg image/png image/webp image/gif]
+    unless allowed.include?(file.content_type)
+      return render json: { error: "対応していない画像形式です" }, status: :unprocessable_entity
+    end
+
+    url = ImageUploader.upload_user_avatar!(user_id: @user.id, file: file)
+
+    if @user.update(image: url)
+      render json: {
+        user: @user.as_json(only: [ :id, :name, :email, :provider, :image, :bio ]),
+        message: "ユーザー画像を更新しました"
+      }, status: :ok
+    else
+      render json: { errors: @user.errors.full_messages }, status: :unprocessable_entity
     end
   end
 

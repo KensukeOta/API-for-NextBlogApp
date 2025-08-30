@@ -9,7 +9,11 @@ Rails.application.routes.draw do
   # root "posts#index"
   scope :v1 do
     get "users/:name", to: "users#show_by_name"
-    resources :users
+    resources :users do
+      member do
+        post :image # /v1/users/:id/image
+      end
+    end
     resources :user_social_profiles, only: [ :create, :update, :destroy ]
     resources :sessions,             only: [ :create ]
     resources :oauth,                only: [ :create ]
